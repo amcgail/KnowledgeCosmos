@@ -1,4 +1,6 @@
 data/*
+dist/*
+
 .env
 docs/_build/*
 **/__pycache__/*
