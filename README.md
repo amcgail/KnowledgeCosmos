@@ -1,3 +1,47 @@
+# 3D Map Repository
+
+This repository contains tools and utilities for processing and visualizing 3D map data.
+
+## Documentation
+
+The project documentation is organized as follows:
+
+- [Caching System](docs/caching.md) - Documentation for the caching system used throughout the project
+- (Add more documentation links here as they are created)
+
+## Project Structure
+
+```
+.
+├── backend/
+│   └── scripts/
+│       ├── common.py      # Common utilities including caching system
+│       └── ...
+├── docs/                  # Documentation files
+└── ...
+```
+
+## Setup
+
+1. Clone the repository
+2. Create a `.env` file in the root directory with the following variables:
+   ```
+   DATA_FOLDER=/path/to/your/data/folder
+   POTREE_CONVERTER=/path/to/potree_converter
+   ```
+3. Install dependencies (requirements.txt to be added)
+
+## Contributing
+
+When adding new features or modifying existing ones, please:
+1. Update the relevant documentation
+2. Add docstrings to new functions and classes
+3. Follow the existing code style
+
+## License
+
+[Add your license information here]
+
 # re-building
 
 To re-build, first install the binary for [Potree Converter](https://github.com/potree/PotreeConverter/releases).

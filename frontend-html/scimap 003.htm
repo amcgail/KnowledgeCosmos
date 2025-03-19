@@ -846,7 +846,7 @@ most beautiful blobs ... https://blobmixer.14islands.com/
         };
 
         //Potree.loadPointCloud(`../pointclouds/0TOP.las_converted/metadata.json`, "scimap", function(e){
-        Potree.loadPointCloud(`/pointclouds/full/metadata.json`, "scimap", function(e){
+        Potree.loadPointCloud(`/data/pointclouds/full/metadata.json`, "scimap", function(e){
         
             // we need to spin longer to wait for points to be loaded...
             var TT;
@@ -923,7 +923,7 @@ most beautiful blobs ... https://blobmixer.14islands.com/
                 
 
                 //Potree.loadPointCloud("../pointclouds/scimap.las_converted/metadata.json", "scimap", function(e){
-                Potree.loadPointCloud(`../pointclouds/${S}/metadata.json`, S, function(e){
+                Potree.loadPointCloud(`/data/pointclouds/${S}/metadata.json`, S, function(e){
 
                     viewer.scene.addPointCloud(e.pointcloud);
                     //e.pointcloud.position.z = 0;

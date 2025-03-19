@@ -114,7 +114,7 @@ def ProduceFieldPointClouds():
 
     from . import fields, project_vectors, MAG
 
-    fnames = fields.GetFieldNames()
+    fnames = fields.GetFieldNames(force_include=['Education'])
     top_level = fields.GetTopLevel()
     subgs = fields.GetSubFields()
 

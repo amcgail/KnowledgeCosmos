@@ -3,7 +3,8 @@ from .common import *
 @cache
 def GetFieldNames(
     minimum_papers=1000,
-    maximum_level=2
+    maximum_level=2,
+    force_include=None
 ):
     import zipfile
     import io
@@ -15,10 +16,11 @@ def GetFieldNames(
     with zipfile.ZipFile(DATA_FOLDER / 'MAG' / '15.FieldsOfStudy.csv.zip') as zp:
         with io.TextIOWrapper(zp.open('FieldsOfStudy.csv'), encoding='utf8') as inf:
             for l in DictReader(inf):
-                if int(l['level']) > maximum_level:
-                    skipped+=1;continue
-                if int(l['paperCount']) < minimum_papers:
-                    skipped+=1;continue
+                if not force_include or l['foaf_name'] not in force_include:
+                    if int(l['level']) > maximum_level:
+                        skipped+=1;continue
+                    if int(l['paperCount']) < minimum_papers:
+                        skipped+=1;continue
                     
                 res[ l['entity_id'] ] = l['foaf_name']
 

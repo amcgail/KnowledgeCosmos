@@ -10,4 +10,4 @@ mesh.WriteFieldMeshes.make()
 
 pointclouds.ProduceFieldPointClouds()
 pointclouds.ConvertPotreeAll()
-pointclouds.ProduceTopLevelPointCloud.make(force=True)
+pointclouds.ProduceTopLevelPointCloud.make()
