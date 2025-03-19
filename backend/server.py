@@ -14,16 +14,13 @@ import pickle
 from pathlib import Path
 import requests
 
-base_dir = Path('../..')
+from scripts import fields
 
-with (base_dir / 'subgs.pickle').open('rb') as outf:
-    subgs = pickle.load(outf)
+# Load the field data using the proper functions
+fnames = fields.GetFieldNames()
+top_level = fields.GetTopLevel()
+subgs = fields.GetSubFields()
 
-with (base_dir / 'top_level.pickle').open('rb') as outf:
-    top_level = pickle.load(outf)
-
-with (base_dir / 'fnames.pickle').open('rb') as outf:
-    fnames = pickle.load(outf)
 fnamesr = {x:y for y,x in fnames.items()}
 
 @app.route("/subgroups", methods=['GET'])

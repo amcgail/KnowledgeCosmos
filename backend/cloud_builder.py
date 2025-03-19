@@ -1,4 +1,4 @@
-from scripts import project_vectors, mesh, pointclouds
+from scripts import project_vectors, mesh, pointclouds, deploy
 
 # producing the UMAP embedding is super important
 project_vectors.GetUmapEmbedding.make(
@@ -11,3 +11,6 @@ mesh.WriteFieldMeshes.make()
 pointclouds.ProduceFieldPointClouds()
 pointclouds.ConvertPotreeAll()
 pointclouds.ProduceTopLevelPointCloud.make()
+
+# Generate field data JSON and JS files
+deploy.deploy()

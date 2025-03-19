@@ -30,6 +30,7 @@ POTREE_CONVERTER = os.getenv('POTREE_CONVERTER')
 
 DATA_FOLDER = Path(DATA_FOLDER)
 DATA_FOLDER.mkdir(exist_ok=True)
+(DATA_FOLDER / 'static').mkdir(exist_ok=True)
 
 print("DATA_FOLDER = ", DATA_FOLDER)
 
