@@ -679,9 +679,18 @@ most beautiful blobs ... https://blobmixer.14islands.com/
 
                         if(!$s.data('expanded')){							
 
-                            load_field_potree(S);
+                            load_field_potree(S, function(pc){
+                                setTimeout(function(){
+                                    main_pc.visible=false;
 
-                            main_pc.visible=false;
+                                    if (false) {
+                                        main_pc.material.opacity = 0.05;
+                                        
+                                        // saturate all colors in the point cloud
+                                        pc.material.color.set(0.6,0.6,0.6);
+                                    }
+                                }, 1500);
+                            });
                             
                             var $ls = $("<div class='legend_expansion'>");
                             for( var ji in window.subfields[S] ){
@@ -863,7 +872,7 @@ most beautiful blobs ... https://blobmixer.14islands.com/
             viewer.setBackground('black')
     
             // I kind of like this aesthetic, but it causes a terrible flicker
-            viewer.setEDLEnabled(true)
+            viewer.setEDLEnabled(false)
             viewer.setEDLRadius(1.1)
             viewer.setEDLStrength(0.1)
 
@@ -900,7 +909,7 @@ most beautiful blobs ... https://blobmixer.14islands.com/
             viewer.setPointBudget(2_000_000);
         }
 
-        function load_field_potree(S) {
+        function load_field_potree(S, callback) {
 
                 if(false){
                 var X = {
@@ -935,6 +944,8 @@ most beautiful blobs ... https://blobmixer.14islands.com/
                     material.uniforms.uShadowColor.value = [0.6, 0.6, 0.6];
 
                     window.pc = e.pointcloud
+
+                    callback(e.pointcloud);
 
                     /*
                     const coords = viewer.scene.view.position.subScalar(0)
@@ -1976,7 +1987,7 @@ most beautiful blobs ... https://blobmixer.14islands.com/
     margin-right: 22px;
     max-height: calc(100% - 60px);
 '>-->
-    <div id="legend" class='right_boy' style='display:none; margin-right:0; margin-top:0;'></div>
+    <div id="legend" class='right_boy' style='display:none; margin-right:0; margin-top:15px;'></div>
 <!--</div>-->
 <div id="constellation" class='right_boy' style='display:none;'>
     <p>
@@ -2017,26 +2028,8 @@ most beautiful blobs ... https://blobmixer.14islands.com/
   <div class="toolbar-item" data-selectable="true" id="orbit-control">
       <i class="fas fa-sync-alt"></i>
   </div>
-  <div class="toolbar-item" data-selectable="true" id="camera-perspective">
-      <i class="fas fa-cube"></i>
-  </div>
-  <div class="toolbar-item" data-selectable="true" id="camera-orthographic">
-      <i class="fas fa-vector-square"></i>
-  </div>
   <div class="toolbar-item" data-selectable="true" id="rect-select">
       <i class="fas fa-vector-square"></i>
-  </div>
-  <div class="toolbar-item" data-selectable="true">
-      <i class="fas fa-search"></i> <i class="fas fa-caret-down fa-sm"></i>
-  </div>
-  <div class="toolbar-item" data-selectable="true">
-      <i class="fas fa-cube"></i>
-  </div>
-  <div class="toolbar-item" data-selectable="true">
-      <i class="fas fa-layer-group"></i>
-  </div>
-  <div class="toolbar-item">
-      <div class="toggle-switch" title="Toggle Camera Mode"></div>
   </div>
 </div>
 

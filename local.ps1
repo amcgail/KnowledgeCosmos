@@ -10,4 +10,4 @@ cmd /c mklink /D "frontend-html\data" "..\data\static"
 Set-Location frontend-html
 
 # Start Python HTTP server
-python -m http.server
+python -m RangeHTTPServer
