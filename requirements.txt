@@ -1,0 +1,15 @@
+flask
+flask_cors
+
+psycopg2
+matplotlib
+trimesh
+laspy
+alphashape
+ipykernel
+
+umap-learn
+pandas
+
+#prefect
+rangehttpserver
