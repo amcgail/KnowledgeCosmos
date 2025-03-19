@@ -2,3 +2,11 @@ data/*
 .env
 docs/_build/*
 **/__pycache__/*
+
+# these libraries are pulled from the potree library
+frontend-html/potree/*
+frontend-html/shaders/*
+frontend-html/libs/*
+
+# in case you're storing data directly (without the symlink)
+frontend-html/data/*
