@@ -3,7 +3,7 @@ from .common import *
 def ConvertPotree(where):
     where = Path(where)
 
-    out_fn = DATA_FOLDER / 'potrees_converted'
+    out_fn = DATA_FOLDER / 'static' / 'pointclouds'
     out_fn.mkdir(exist_ok=True)
     out_fn = out_fn / where.stem
 

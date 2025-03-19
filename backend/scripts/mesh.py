@@ -14,7 +14,7 @@ def WriteFieldMeshes(
     fnames = GetFieldNames()
     points_per_subfield = FieldNameToPoints()
 
-    outd = DATA_FOLDER / 'field_meshes'
+    outd = DATA_FOLDER / 'static' / 'field_meshes'
     outd.mkdir(exist_ok=True)
 
     for fid in sorted(points_per_subfield, key=lambda x:-len(points_per_subfield[x])):
