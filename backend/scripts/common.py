@@ -14,6 +14,14 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 
+# Import configuration parameters
+try:
+    from . import params
+    CONFIG_PARAMS = {k: v for k, v in vars(params).items() 
+                    if not k.startswith('_') and not callable(v)}
+except ImportError:
+    CONFIG_PARAMS = {}
+
 env_path = Path(__file__).parent.parent.parent / '.env'
 load_dotenv(env_path)
 
@@ -72,19 +80,23 @@ class CacheWrapper:
 
         self.func = func
         self.ignore = ignore
-
         self.memcache = {}
-        
         self.name = self.func.__name__
         
         module = self.func.__module__
         self.module = '.'.join(module.split('.')[1:])
         
         signature = inspect.signature(self.func)
+        # Get all parameters that have defaults
         self.defaults = {
             k: v.default
             for k, v in signature.parameters.items()
             if v.default is not inspect.Parameter.empty
+        }
+        # Get all parameter names that are keyword-only
+        self.kwargs_only = {
+            k for k, v in signature.parameters.items()
+            if v.kind in (inspect.Parameter.KEYWORD_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
         }
 
     def hash(self, kwargs):
@@ -101,7 +113,13 @@ class CacheWrapper:
         import hashlib
         import inspect
 
+        # Start with defaults
         kwargs = dict(self.defaults, **kwargs)
+        # Override with config params if they exist
+        for k, v in CONFIG_PARAMS.items():
+            if k in self.kwargs_only:  # Only override if it's a valid keyword arg
+                kwargs[k] = v
+
         kwargs_care = {k: str(v) for k, v in kwargs.items() if self.ignore is None or k not in self.ignore}
 
         h = hashlib.md5(json.dumps({
@@ -221,6 +239,13 @@ class CacheWrapper:
         """
         if len(args):
             raise ValueError("This is a cached function. Use only keyword arguments")
+        
+        # Start with defaults
+        kwargs = dict(self.defaults, **kwargs)
+        # Override with config params if they exist
+        for k, v in CONFIG_PARAMS.items():
+            if k in self.kwargs_only:  # Only override if it's a valid keyword arg
+                kwargs[k] = v
         
         result = self.load(kwargs)
         if result is not None:
