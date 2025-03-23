@@ -47,7 +47,7 @@
 
 /* Legend */
 #legend {
-    max-height: calc(100% - 100px);
+    max-height: calc(100% - 200px);
     overflow-y: scroll;
 }
 

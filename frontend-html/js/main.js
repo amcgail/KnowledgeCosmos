@@ -17,6 +17,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // Store references
         window.main_pc = pc;
         window.viewer.startPresentation();
+
+        // Mouse move tracking
+        $(document).on('mousemove', (e) => {
+            window.viewer.viewer.mouse = e.originalEvent;
+        });
+
+        // Mouse click handling
+        $('canvas').on('mousedown', (e) => {
+            if (e.originalEvent.button === 0) { // left-click only
+                window.paperManager.checkAndDisplay();
+            }
+        });
     });
 
     // Start the render loop

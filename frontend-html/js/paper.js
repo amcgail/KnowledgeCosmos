@@ -29,59 +29,7 @@ function getPaperData(id, callback) {
 export class PaperManager {
     constructor(viewer) {
         this.viewer = viewer;
-    }
-    
-    highlight(which, callback) {
-        const ret = {};
-        callback = callback || function() {};
-
-        const c1 = getColor();
-        const c2 = hslToHex.apply(null, c1);
-        
-        ret.color = c2;
-        ret.name = which;
-        
-        const material = new THREE.MeshBasicMaterial({
-            color: c2,
-            wireframe: true,
-            wireframeLinewidth: 10
-        });
-
-        const loader = new STLLoader();
-        let mesh;
-        
-        loader.load(
-            `/data/field_meshes/${which}.stl`,
-            (geometry) => {
-                mesh = new THREE.Mesh(geometry, material);
-                mesh.scale.set(100, 100, 100);
-                material.transparent = true;
-                this.viewer.scene.scene.add(mesh);
-                
-                ret.mesh = mesh;
-                
-                this.permanentHighlight(mesh);
-                callback(ret);
-            },
-            (xhr) => {
-                console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
-            },
-            (error) => {
-                console.error('Error loading STL:', error);
-                callback(null);
-            }
-        );
-    }
-
-    permanentHighlight(mesh) {
-        const X = { op: this.viewer.edlOpacity };
-        new TWEEN.Tween(X)
-            .to({ op: 0.8 }, 500)
-            .onUpdate(() => {
-                this.viewer.setEDLOpacity(X.op);
-                mesh.material.opacity = 0.8;
-            })
-            .start();
+        this.camera = viewer.scene.getActiveCamera();
     }
 
     showPaperCard(id) {
@@ -126,6 +74,152 @@ export class PaperManager {
     }
 
     hidePaperCard() {
+        $("#paper_info").toggle(false);
+        $(".card").toggle(false);
+        $("#potree_render_area").css('left', '0');
+    }
+
+    
+    checkAndDisplay() {
+        if (!this.viewer.mouse) return;
+
+        const e = this.viewer.mouse;
+        let m = this.viewer.mouse;
+
+        if ($(".card").is(":visible")) {
+            m = new MouseEvent("click", {
+                bubbles: true,
+                cancelable: true,
+                view: window,
+                screenX: e.screenX - 400,
+                screenY: e.screenY,
+                clientX: e.clientX - 400,
+                clientY: e.clientY,
+                pageX: e.pageX - 400,
+                pageY: e.pageY,
+                button: e.button,
+                buttons: e.buttons,
+                relatedTarget: e.relatedTarget,
+                ctrlKey: e.ctrlKey,
+                shiftKey: e.shiftKey,
+                altKey: e.altKey,
+                metaKey: e.metaKey,
+            });
+        }
+
+        const I = Potree.Utils.getMousePointCloudIntersection(
+            m,
+            this.camera,
+            this.viewer,
+            this.viewer.scene.pointclouds
+        );
+
+        if (I !== null) {
+            const myi = I.point['mag_id'][0];
+            if (this.viewer.focal_i !== myi) {
+                if (I.distance < 50) {
+                    this.handlePointSelection(I);
+                    window.paperManager.showPaperCard(myi);
+                } else {
+                    this.resetSelection();
+                    window.paperManager.hidePaperCard();
+                }
+            }
+        } else {
+            this.resetSelection();
+            window.paperManager.hidePaperCard();
+        }
+    }
+
+    handlePointSelection(I) {
+        const currentDeltVector = this.camera.position.clone().sub(I.location);
+        const direction = currentDeltVector.normalize();
+        const delt = 8;
+        
+        const targetPosition = I.location.clone().add(direction.multiplyScalar(delt));
+        const targetLookAt = I.location.clone();
+        
+        const startPosition = this.camera.position.clone();
+        const startQuaternion = this.camera.quaternion.clone();
+
+        const m = new THREE.Matrix4();
+        const upsave = this.camera.up.clone();
+        m.lookAt(targetPosition, targetLookAt, this.camera.up);
+
+        const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(m);
+
+        const duration = 2000;
+        const tweenObj = { t: 0 };
+
+        new TWEEN.Tween(tweenObj)
+            .to({ t: 1 }, duration)
+            .easing(TWEEN.Easing.Quadratic.Out)
+            .onUpdate(() => {
+                this.camera.position.lerpVectors(startPosition, targetPosition, tweenObj.t);
+                THREE.Quaternion.slerp(startQuaternion, targetQuaternion, this.camera.quaternion, tweenObj.t);
+                this.viewer.scene.view.position.set(
+                    this.camera.position.x,
+                    this.camera.position.y,
+                    this.camera.position.z
+                );
+            })
+            .onComplete(() => {
+                this.viewer.scene.view.lookAt(targetLookAt);
+                setTimeout(() => {
+                    // I'm not sure why, but the orientation flips every now and again,
+                    //  right at the end of the animation.
+                    // Fortunately we can flip it back before the beginning of the next frame.
+                    this.viewer.scene.view.lookAt(targetLookAt);
+                }, 10);
+            })
+            .start();
+
+        this.resetFocalSphere();
+        this.createFocalSphere(I);
+    }
+
+    resetFocalSphere() {
+        if (this.viewer.focal_sphere) {
+            this.viewer.scene.scene.remove(this.viewer.focal_sphere);
+        }
+        this.viewer.focal_sphere = null;
+        this.viewer.focal_i = null;
+    }
+
+    createFocalSphere(I) {
+        const sphere_geometry = new THREE.SphereGeometry(1, 128, 128);
+        const material = new THREE.MeshNormalMaterial();
+        this.viewer.focal_sphere = new THREE.Mesh(sphere_geometry, material);
+        this.viewer.focal_sphere.position.set(I.location.x, I.location.y, I.location.z);
+        this.viewer.focal_sphere.scale.set(0.15, 0.15, 0.15);
+        this.viewer.focal_sphere.frustumCulled = false;
+        this.viewer.scene.scene.add(this.viewer.focal_sphere);
+        this.viewer.focal_i = I.point['mag_id'][0];
+
+        // Add animation to the sphere
+        const animate = () => {
+            if (this.viewer.focal_sphere) {
+                const time = performance.now() * 0.003;
+                const k = 3;
+                const vertices = this.viewer.focal_sphere.geometry.vertices;
+                
+                for (let i = 0; i < vertices.length; i++) {
+                    const p = vertices[i];
+                    p.normalize().multiplyScalar(1 + 0.3 * noise.perlin3(p.x * k + time, p.y * k + time, p.z * k));
+                }
+                
+                this.viewer.focal_sphere.geometry.verticesNeedUpdate = true;
+                this.viewer.focal_sphere.geometry.computeVertexNormals();
+            }
+            
+            requestAnimationFrame(animate);
+        };
+        
+        animate();
+    }
+
+    resetSelection() {
+        this.resetFocalSphere();
         $("#paper_info").toggle(false);
         $(".card").toggle(false);
         $("#potree_render_area").css('left', '0');
