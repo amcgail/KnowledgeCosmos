@@ -1,0 +1,60 @@
+/* Tips Panel */
+#tips {
+    color: black;
+    background-color: rgba(255,255,255,1);
+    font-size: 10pt;
+    position: absolute;
+    z-index: 2;
+    bottom: 22px;
+    left: 22px;
+    padding: 15px;
+    text-align: left;
+    width: 400px;
+    display: none;
+    border-radius: 15px;
+}
+
+#tips p {
+    display: none;
+    margin-bottom: 15px;
+    line-height: 1.6;
+}
+
+#tips span {
+    cursor: pointer;
+    text-decoration: underline;
+    margin-right: 15px;
+}
+
+/* Comments Box */
+#comment_box {
+    position: absolute;
+    z-index: 3;
+    background-color: white;
+    padding: 15px;
+    border-radius: 15px;
+    left: 22px;
+    bottom: 22px;
+    width: 300px;
+}
+
+#comments_close {
+    cursor: pointer;
+    text-decoration: underline;
+    margin-top: 10px;
+}
+
+/* Hide HTML Comment Box Link */
+#HCB_comment_box a {
+    display: none;
+}
+
+/* Tips Navigation */
+#tips_next, #tips_close {
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+#tips {
+    text-align: left;
+} 

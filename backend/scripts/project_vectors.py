@@ -57,7 +57,7 @@ def pct_sample(pct, **kwargs):
         if random() < pct:
             yield X
 
-@cache
+@cache(ignore=['DEBUG'])
 def SampleForUmap(SAMPLE_SIZE=1_000_000, DEBUG=False):
     logger.info('sampling...')
 
@@ -68,7 +68,7 @@ def SampleForUmap(SAMPLE_SIZE=1_000_000, DEBUG=False):
     # more accurate, because it's taking a random sample of the vectors
     return list(pct_sample(SAMPLE_SIZE / 17e6))
 
-@cache
+@cache(ignore=['DEBUG'])
 def FitUmapToSample(
     SAMPLE_SIZE=1_000_000,
     DEBUG=False
@@ -90,8 +90,8 @@ def FitUmapToSample(
     
     return reducer
 
-@cache(ignore=['CHUNK_SIZE'])
-def GetUmapEmbeddingSingleFile(        
+@cache(ignore=['CHUNK_SIZE', 'DEBUG'])
+def GetUmapEmbeddingSingleFile(   
     filename,
     CHUNK_SIZE=10_000,
     SAMPLE_SIZE=100_000,

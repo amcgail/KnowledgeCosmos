@@ -132,24 +132,27 @@ class CacheWrapper:
         
     def filename(self, kwargs):
         """
-        Generate the cache file path for the given arguments.
+        Generate the cache file paths using a hash of the arguments.
         
         Args:
             kwargs: Dictionary of keyword arguments
             
         Returns:
-            Path: Path to the cache file
+            tuple: (Path to metadata file, Path to result file)
         """
-        import inspect
-        from time import time
-
-        source = inspect.getsource(self.func)
-
-        h = self.hash(kwargs)
-
+        # Get relevant arguments (excluding ignored ones)
+        relevant_args = {k: str(v) for k, v in kwargs.items() 
+                        if self.ignore is None or k not in self.ignore}
+        
+        # Create a hash of the arguments
+        import json
+        import hashlib
+        arg_str = json.dumps(relevant_args, sort_keys=True)
+        hash_value = hashlib.md5(arg_str.encode()).hexdigest()
+        
         (cache_dir / self.module).mkdir(exist_ok=True)
-        cache_file = cache_dir / self.module / f"{self.name}_{h}.pkl"
-        return cache_file
+        base_path = cache_dir / self.module / f"{self.name}_{hash_value}"
+        return base_path.with_suffix('.yaml'), base_path.with_suffix('.pkl')
     
     def load(self, kwargs):
         """
@@ -161,33 +164,48 @@ class CacheWrapper:
         Returns:
             The cached result if available, None otherwise
         """
-        cache_file = self.filename(kwargs)
+        meta_file, result_file = self.filename(kwargs)
 
-        if cache_file in self.memcache:
-            return self.memcache[cache_file]
+        if result_file in self.memcache:
+            return self.memcache[result_file]
                                  
-        if cache_file.exists():
+        if result_file.exists() and meta_file.exists():
             s = time()
-            with open(cache_file, 'rb') as f:
-                v = pickle.load(f)
+            # Load the result data
+            with open(result_file, 'rb') as f:
+                result = pickle.load(f)
             logger.info(f"Loaded cache for {self.module}.{self.name} in {time()-s:.1f}s")
-            self.memcache[cache_file] = v
-            return v
+            self.memcache[result_file] = result
+            return result
 
         return None
     
     def save(self, kwargs, result):
         """
-        Save results to the cache file.
+        Save results to separate metadata and result files.
         
         Args:
             kwargs: Dictionary of keyword arguments
             result: The result to cache
         """
-        cache_file = self.filename(kwargs)
+        meta_file, result_file = self.filename(kwargs)
         s = time()
-        with open(cache_file, 'wb') as f:
+        
+        # Save metadata to YAML
+        import yaml
+        metadata = {
+            'args': kwargs,
+            'timestamp': time(),
+            'module': self.module,
+            'function': self.name
+        }
+        with open(meta_file, 'w') as f:
+            yaml.dump(metadata, f, default_flow_style=False)
+            
+        # Save result data to pickle
+        with open(result_file, 'wb') as f:
             pickle.dump(result, f)
+            
         logger.info(f"Saved cache for {self.module}.{self.name} in {time()-s:.1f}s")
 
     def make(self, *args, force=False, **kwargs):
@@ -211,7 +229,7 @@ class CacheWrapper:
         cache_file = self.filename(kwargs)
 
         # If cache exists, do nothing
-        if cache_file.exists() and not force:
+        if cache_file[1].exists() and not force:
             return
 
         # Otherwise, compute the result and save it

@@ -164,7 +164,7 @@ most beautiful blobs ... https://blobmixer.14islands.com/
             padding: 15px;
             border-radius: 15px;
             margin-right: 22px;
-            margin-top: 5px;
+            margin-top: 20px;
         }
         
         .linky {
@@ -215,9 +215,9 @@ most beautiful blobs ... https://blobmixer.14islands.com/
         }
             
         #const_legend {
+            margin-top: 10px;
             background-color: black;
             border-radius: 15px;
-            margin-top: 10px;
             color: white;
         }
         
@@ -402,7 +402,7 @@ most beautiful blobs ... https://blobmixer.14islands.com/
             logarithmicDepthBuffer: true // don't think this does anything. I found it in a blog, that putting this into WebGLRenderer constructor reduces flickering from z-fighting
         });
         
-        viewer.setEDLEnabled(false);
+        viewer.setEDLEnabled(true);
         viewer.setFOV(60);
         //viewer.setPointBudget(2_000_000);
         //viewer.setPointBudget(500_000);
@@ -418,8 +418,6 @@ most beautiful blobs ... https://blobmixer.14islands.com/
         document.addEventListener('DOMContentLoaded', function() {
             const flightControl = document.getElementById('flight-control');
             const orbitControl = document.getElementById('orbit-control');
-            const cameraPerspective = document.getElementById('camera-perspective');
-            const cameraOrthographic = document.getElementById('camera-orthographic');
             
             // Set initial camera mode
             viewer.setCameraMode(Potree.CameraMode.PERSPECTIVE);
@@ -438,19 +436,6 @@ most beautiful blobs ... https://blobmixer.14islands.com/
                 orbitControl.classList.add('selected');
                 flightControl.classList.remove('selected');
             });
-            
-            // Camera mode switching
-            cameraPerspective.addEventListener('click', function() {
-                viewer.setCameraMode(Potree.CameraMode.PERSPECTIVE);
-                cameraPerspective.classList.add('selected');
-                cameraOrthographic.classList.remove('selected');
-            });
-            
-            cameraOrthographic.addEventListener('click', function() {
-                viewer.setCameraMode(Potree.CameraMode.ORTHOGRAPHIC);
-                cameraOrthographic.classList.add('selected');
-                cameraPerspective.classList.remove('selected');
-            });
         });
 
         //viewer.loadSettingsFromURL();
@@ -458,11 +443,13 @@ most beautiful blobs ... https://blobmixer.14islands.com/
         
         viewer.setDescription("");
         
-        viewer.loadGUI().then(() => {
-            viewer.setLanguage('en');
-            $("#menu_appearance").next().show();
-            // viewer.toggleSidebar();
-        });
+        if (false) {
+            viewer.loadGUI().then(() => {
+                viewer.setLanguage('en');
+                $("#menu_appearance").next().show();
+                // viewer.toggleSidebar();
+            });
+        }
         
         /*
         let light = new THREE.SpotLight();
@@ -660,6 +647,8 @@ most beautiful blobs ... https://blobmixer.14islands.com/
         window.pc = null;
 
         function setup_subfields() {
+            $("#constellation #field_lookup").autocomplete({source:fields});
+
             var $l = $("#legend");
             $l.html("")
             var top_fields = Object.keys(window.subfields).sort();
@@ -737,13 +726,11 @@ most beautiful blobs ... https://blobmixer.14islands.com/
                 window.subfield_colors = data.subfield_colors;
                 window.subfields = data.subfields;    
             }).then( setup_subfields );
-
-            setup_subfields();
         });
     
 
-        viewer.scene.view.position.set(28910, 74489, -6947);
-        viewer.scene.view.lookAt(573.5842551496426, 450.36947654709786, 418.62651746203494);
+        viewer.scene.view.position.set(1623, 1950, 1492);
+        viewer.scene.view.lookAt(730, 691, 725);
 
         //var c = new Potree.Compass(viewer)
         //c.setVisible(true);
@@ -1730,7 +1717,6 @@ most beautiful blobs ... https://blobmixer.14islands.com/
             //highlight(what);
         }
         
-        $("#constellation #field_lookup").autocomplete({source:fields});
         $("#constellation #field_add").click(function(){
             highlight( $("#field_lookup").val(), function(ret){
                 var c = ret.color;
@@ -1755,30 +1741,16 @@ most beautiful blobs ... https://blobmixer.14islands.com/
         })
         
         $("#menu .title").click(home);
+        console.log("home")
 
         
   document.addEventListener('DOMContentLoaded', function() {
       const toolbarItems = document.querySelectorAll('.toolbar-item[data-selectable="true"]');
-      const toggleSwitch = document.querySelector('.toggle-switch');
       let isRectSelectActive = false;
       let isDrawing = false;
       let startX, startY;
       let selectionRect = null;
       let isOrthographicMode = false;
-
-      // Add camera mode toggle functionality
-      toggleSwitch.addEventListener('click', function() {
-          isOrthographicMode = !isOrthographicMode;
-          this.classList.toggle('active');
-          
-          if (isOrthographicMode) {
-              viewer.setCameraMode(Potree.CameraMode.ORTHOGRAPHIC);
-          } else {
-              viewer.setCameraMode(Potree.CameraMode.PERSPECTIVE);
-          }
-      });
-
-      // Rest of the existing code...
 
       // Create selection rectangle element
       const rect = document.createElement('div');
@@ -1876,9 +1848,13 @@ most beautiful blobs ... https://blobmixer.14islands.com/
       document.addEventListener('mouseup', window.rect_mulistener);
 
       function zoomToSelection(centerX, centerY, width, height) {
+          // Get the canvas element and its position
+          const canvas = viewer.renderer.domElement;
+          const rect = canvas.getBoundingClientRect();
+          
           // Convert screen coordinates to normalized device coordinates (-1 to 1)
-          const ndcX = (centerX / window.innerWidth) * 2 - 1;
-          const ndcY = -(centerY / window.innerHeight) * 2 + 1;
+          const ndcX = ((centerX - rect.left) / rect.width) * 2 - 1;
+          const ndcY = -((centerY - rect.top) / rect.height) * 2 + 1;
           
           // Create a point in 3D space
           const vector = new THREE.Vector3(ndcX, ndcY, 0.5);
@@ -1889,20 +1865,17 @@ most beautiful blobs ... https://blobmixer.14islands.com/
           
           // Calculate the distance based on the selection size and field of view
           const fov = camera.fov * (Math.PI / 180); // Convert FOV to radians
-          const aspectRatio = window.innerWidth / window.innerHeight;
+          const aspectRatio = rect.width / rect.height;
           
           // Calculate the height of the view frustum at the target distance
-          // This is based on the camera's field of view and aspect ratio
           const frustumHeight = 2 * Math.tan(fov / 2);
           const frustumWidth = frustumHeight * aspectRatio;
           
           // Calculate how much of the view frustum our selection should take up
-          // We want the selection to take up about 40% of the view
           const targetHeightRatio = 0.4;
           
           // Calculate the distance needed to make the selection the desired size
-          // This is based on similar triangles: selectionHeight/distance = frustumHeight/1
-          const distance = (Math.max(width, height) / window.innerHeight) / (frustumHeight * targetHeightRatio);
+          const distance = (Math.max(width, height) / rect.height) / (frustumHeight * targetHeightRatio);
           
           // Calculate target position
           const targetPosition = camera.position.clone().add(direction.multiplyScalar(distance));
@@ -1987,7 +1960,7 @@ most beautiful blobs ... https://blobmixer.14islands.com/
     margin-right: 22px;
     max-height: calc(100% - 60px);
 '>-->
-    <div id="legend" class='right_boy' style='display:none; margin-right:0; margin-top:15px;'></div>
+    <div id="legend" class='right_boy' style='display:none;'></div>
 <!--</div>-->
 <div id="constellation" class='right_boy' style='display:none;'>
     <p>

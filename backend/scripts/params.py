@@ -4,8 +4,8 @@ These parameters will override any default values or explicitly provided argumen
 when calling cached functions.
 """
 
-# Parameters for fields.py
 force_include = ['Education']  # Fields to always include regardless of size
+MIN_PAPERS = 5000 # minimum number of papers to include a field
 
 # Add more configuration parameters here as needed
 # Format: parameter_name = value 

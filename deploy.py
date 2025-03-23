@@ -32,26 +32,6 @@ def run_command(command):
         print(f"Error running command '{command}': {str(e)}")
         return 1, "", str(e)
 
-# step 1: make, or empty, the dist folder
-dist_path = 'dist'
-if os.path.exists(dist_path):
-    shutil.rmtree(dist_path)
-os.makedirs(dist_path)
-
-# step 2: copy the contents of the frontend-html folder into dist
-frontend_path = 'frontend-html'
-if not os.path.exists(frontend_path):
-    print(f"Error: {frontend_path} directory not found")
-    sys.exit(1)
-
-for item in os.listdir(frontend_path):
-    source = os.path.join(frontend_path, item)
-    dest = os.path.join(dist_path, item)
-    if os.path.isdir(source):
-        shutil.copytree(source, dest)
-    else:
-        shutil.copy2(source, dest)
-
 # step 3: check if bucket exists and create if it doesn't
 # Use a cross-platform way to redirect output
 if sys.platform == 'win32':
@@ -71,6 +51,24 @@ if returncode != 0:
 
 # step 3.5, making sure the bucket's settings are correct
 print("Configuring bucket for public web access...")
+
+# First, set bucket ownership controls to ObjectWriter
+ownership_controls = {
+    "Rules": [
+        {
+            "ObjectOwnership": "ObjectWriter"
+        }
+    ]
+}
+ownership_file = "ownership_controls.json"
+with open(ownership_file, "w") as f:
+    json.dump(ownership_controls, f)
+
+returncode, stdout, stderr = run_command(f'aws s3api put-bucket-ownership-controls --bucket {bucket_name} --ownership-controls file://{ownership_file}')
+if returncode != 0:
+    print(f"Error setting ownership controls: {stderr}")
+    sys.exit(1)
+os.remove(ownership_file)
 
 # Enable public access block settings
 block_public_access = {
@@ -103,6 +101,13 @@ bucket_policy = {
             "Principal": "*",
             "Action": "s3:GetObject",
             "Resource": f"arn:aws:s3:::{bucket_name}/*"
+        },
+        {
+            "Sid": "PublicReadListBucket",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:ListBucket",
+            "Resource": f"arn:aws:s3:::{bucket_name}"
         }
     ]
 }
@@ -150,8 +155,8 @@ test_html = """
 with open("test_index.html", "w") as f:
     f.write(test_html)
 
-# Upload the test file
-returncode, stdout, stderr = run_command(f'aws s3 cp test_index.html s3://{bucket_name}/index.html')
+# Upload the test file with public-read ACL
+returncode, stdout, stderr = run_command(f'aws s3 cp test_index.html s3://{bucket_name}/index.html --acl public-read')
 if returncode != 0:
     print(f"Error uploading test file: {stderr}")
     sys.exit(1)
@@ -170,14 +175,13 @@ elif sys.platform == "win32":  # Windows
 else:  # Linux
     run_command('xdg-open ' + bucket_url)
 
-
 # step 4: sync the dist folder to the bucket
-if False:
-    print(f"Syncing {dist_path} to s3://{bucket_name}...")
-    returncode, stdout, stderr = run_command(f'aws s3 sync {dist_path} s3://{bucket_name}')
-    if returncode != 0:
-        print(f"Error syncing to S3: {stderr}")
-        sys.exit(1)
+dist_path = 'frontend-html'
+print(f"Syncing {dist_path} to s3://{bucket_name}...")
+returncode, stdout, stderr = run_command(f'aws s3 sync {dist_path} s3://{bucket_name} --acl public-read --size-only')
+if returncode != 0:
+    print(f"Error syncing to S3: {stderr}")
+    sys.exit(1)
 
-    # step 5: print the url of the bucket
-    print(f'https://{bucket_name}.s3.amazonaws.com/')
+# step 5: print the url of the bucket
+print(f'https://{bucket_name}.s3.amazonaws.com/')

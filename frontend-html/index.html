@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>The Knowledge Cosmos</title>
+
+    <!-- External Libraries -->
+    <link rel="stylesheet" href="/potree/potree.css">
+    <link rel="stylesheet" href="/libs/jquery-ui/jquery-ui.min.css">
+    <link rel="stylesheet" href="/libs/openlayers3/ol.css">
+    <link rel="stylesheet" href="/libs/spectrum/spectrum.css">
+    <link rel="stylesheet" href="/libs/jstree/themes/mixed/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Application Styles -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/toolbar.css">
+    <link rel="stylesheet" href="css/card.css">
+    <link rel="stylesheet" href="css/tips.css">
+    <link rel="stylesheet" href="css/loading.css">
+</head>
+
+<body>
+    <!-- Main Container -->
+    <div class="potree_container">
+        <div id="potree_render_area"></div>
+        <div id="potree_sidebar_container"></div>
+    </div>
+
+    <!-- Paper Card -->
+    <div class="card" style="display: none;">
+        <div class="title"></div>
+        <div class="meta"></div>
+        <div class="tags"></div>
+        <div class="content"></div>
+        <div class="loading-placeholders" style="display: none;">
+            <div class="loading-placeholder title"></div>
+            <div class="loading-placeholder meta"></div>
+            <div class="loading-placeholder tags"></div>
+            <div class="loading-placeholder content"></div>
+        </div>
+    </div>
+
+    <!-- Game Info -->
+    <div id="game_info" style="display:none;">
+        <div class="ephemeral">This is only a game.</div>
+        <div class="always">
+            <a href="#" onclick="window.viewer.home();">Home</a>, 
+            <a href="javascript:window.viewer.circle();">Circle</a>, 
+            <a href="javascript:window.viewer.tour();">Tour</a>,
+            <a href="#" onclick="window.viewer.brain();">Brain Scan</a>
+            <br/><a href="javascript:window.viewer.stop();">Stop All</a>
+        </div>
+    </div>
+
+    <!-- Loading Info -->
+    <div id="prettier_game_info">Loading...</div>
+    <div id="paper_info" style="display:none"></div>
+
+    <!-- Field Legend -->
+    <div id="legend" class="right_boy" style="display:none;"></div>
+
+    <!-- Constellation Panel -->
+    <div id="constellation" class="right_boy" style="display:none;">
+        <p>Specify an academic field to show its constellation in the map.
+           This constellation shows the approximate bounds of where papers in the field are located.
+           This can be used along with <i>filter</i> to explore intersections and interactions between fields.</p>
+        <input id="field_lookup" placeholder="Enter an academic field"/>
+        <button id="field_add">Add Constellation</button>
+        <span id="field_bug" style="display:none;"></span>
+        <div id="const_legend"></div>
+    </div>
+
+    <!-- Reporting -->
+    <div id="reporting" style="display:none;"></div>
+    <div id="labels"></div>
+
+    <!-- Main Menu -->
+    <div id="menu">
+        <div class="title" style="display:none;" onclick="window.viewer.home();">The Knowledge Cosmos</div>
+        <div class="item" id="skip_intro" onclick="window.viewer.skip_intro();" style="display:none">Skip Intro</div>
+        <div class="item" id="field_mode" onclick="window.viewer.field_mode();" style="display:none">Filters</div>
+        <div class="item" id="constellations" onclick="window.viewer.constellation();" style="display:none">Constellations</div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <div class="toolbar-item selected" data-selectable="true" id="flight-control">
+            <i class="fas fa-rocket"></i>
+        </div>
+        <div class="toolbar-item" data-selectable="true" id="orbit-control">
+            <i class="fas fa-sync-alt"></i>
+        </div>
+        <div class="toolbar-item" data-selectable="true" id="rect-select">
+            <i class="fas fa-vector-square"></i>
+        </div>
+    </div>
+
+    <!-- Tips Panel -->
+    <div id="tips_link" class="linky" style="display:none;">Tips</div>
+    <div id="comment_link" class="linky" style="display:none;">Comments</div>
+
+    <div id="tips">
+        <!-- Tips will be dynamically inserted here by JavaScript -->
+    </div>
+
+    <!-- Comments Box -->
+    <div id="comment_box" style="display:none;">
+        <div id="HCB_comment_box">Loading comments...</div>
+        <div id="comments_close">Close</div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading" style="display:none;">
+        <div class="spinner"></div>
+        Loading point cloud...
+    </div>
+
+    <!-- External Libraries -->
+    <script src="/libs/jquery/jquery-3.1.1.min.js"></script>
+    <script src="/libs/spectrum/spectrum.js"></script>
+    <script src="/libs/jquery-ui/jquery-ui.min.js"></script>
+    <script src="/libs/other/BinaryHeap.js"></script>
+    <script src="/libs/tween/tween.min.js"></script>
+    <script src="/libs/d3/d3.js"></script>
+    <script src="/libs/proj4/proj4.js"></script>
+    <script src="/libs/openlayers3/ol.js"></script>
+    <script src="/libs/i18next/i18next.js"></script>
+    <script src="/libs/jstree/jstree.js"></script>
+    <script src="/potree/potree.js"></script>
+    <script src="/libs/plasio/js/laslaz.js"></script>
+    <script src="/libs/noise.js"></script>
+
+    <!-- Application Scripts -->
+    <script type="module" src="js/utils.js"></script>
+    <script type="module" src="js/controls.js"></script>
+    <script type="module" src="js/paper.js"></script>
+    <script type="module" src="js/ui.js"></script>
+    <script type="module" src="js/viewer.js"></script>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html> 

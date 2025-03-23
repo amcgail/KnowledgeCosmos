@@ -1,0 +1,152 @@
+/* Paper Card */
+.card {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 400px;
+    height: 100vh;
+    background: white;
+    padding: 20px;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.card .title {
+    font-family: cyber;
+    font-size: 18px;
+    margin-bottom: 15px;
+    line-height: 1.4;
+}
+
+.card .meta {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 15px;
+    line-height: 1.6;
+}
+
+.card .tags {
+    margin-bottom: 15px;
+}
+
+.card .tag {
+    display: inline-block;
+    background: #f0f0f0;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin: 2px;
+    font-size: 12px;
+}
+
+.card .content {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #333;
+}
+
+/* Legend */
+#legend {
+    max-height: calc(100% - 100px);
+    overflow-y: scroll;
+}
+
+#legend .legend_item {
+    cursor: pointer;
+    display: block;
+    padding: 5px;
+}
+
+.swatch {
+    width: 15px;
+    height: 15px;
+    display: inline-block;
+    margin-right: 6px;
+    border-radius: 8px;
+}
+
+.label {
+    display: inline-block;
+}
+
+.legend_expansion {
+    background-color: black;
+    color: white;
+    padding: 10px;
+    border-radius: 15px;
+    margin-top: 5px;
+    margin-bottom: 10px;
+}
+
+/* Constellation */
+#constellation {
+    max-height: calc(100% - 100px);
+    overflow-y: scroll;
+}
+
+#constellation p {
+    margin: 0 0 20px;
+    font-size: 10pt;
+}
+
+#constellation input {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+#constellation button {
+    width: 100%;
+    padding: 8px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#constellation button:hover {
+    background: #45a049;
+}
+
+#const_legend .legend_item {
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#const_legend .link {
+    text-decoration: underline;
+    cursor: pointer;
+    color: #666;
+}
+
+#const_legend .lab {
+    flex-grow: 1;
+}
+
+/* Paper Info */
+#paper_info {
+    color: black;
+    background-color: rgb(255, 255, 255);
+    font-size: 13px;
+    z-index: 2;
+    position: relative;
+    padding: 2px;
+    width: 30%;
+    text-align: center;
+    margin: auto;
+    border-radius: 15px;
+    padding: 10px;
+    position: absolute;
+    top: 60px;
+    left: 35%;
+}
+
+#paper_info a {
+    color: black;
+    text-decoration: underline;
+} 

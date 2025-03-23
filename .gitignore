@@ -12,3 +12,6 @@ frontend-html/libs/*
 
 # in case you're storing data directly (without the symlink)
 frontend-html/data/*
+
+# just for testing
+frontend-react/*
