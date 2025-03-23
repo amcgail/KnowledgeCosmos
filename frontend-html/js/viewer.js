@@ -62,15 +62,26 @@ export class Viewer {
         // Set initial camera mode
         this.viewer.setCameraMode(Potree.CameraMode.PERSPECTIVE);
         
+        // General control settings
+        this.viewer.fpControls.lockElevation = false;
+        this.viewer.fpControls.rotationSpeed = 25;
+        this.viewer.fpControls.maxPolarAngle = Math.PI / 2;
+        
+        this.viewer.orbitControls.enableDamping = true;
+        this.viewer.orbitControls.dampingFactor = 0.05;
+        
         // Setup control switching
         const flightControl = document.getElementById('flight-control');
         const orbitControl = document.getElementById('orbit-control');
         
+        // Set initial state - flight controls are default
+        this.viewer.setControls(this.viewer.fpControls);
+        flightControl.classList.add('selected');
+        orbitControl.classList.remove('selected');
+        
+        // Setup control switching event listeners
         flightControl.addEventListener('click', () => {
             this.viewer.setControls(this.viewer.fpControls);
-            this.viewer.fpControls.lockElevation = false;
-            this.viewer.fpControls.rotationSpeed = 50;
-            this.viewer.fpControls.maxPolarAngle = Math.PI / 2;
             flightControl.classList.add('selected');
             orbitControl.classList.remove('selected');
             
@@ -80,8 +91,6 @@ export class Viewer {
         
         orbitControl.addEventListener('click', () => {
             this.viewer.setControls(this.viewer.orbitControls);
-            this.viewer.orbitControls.enableDamping = true;
-            this.viewer.orbitControls.dampingFactor = 0.05;
             orbitControl.classList.add('selected');
             flightControl.classList.remove('selected');
             
