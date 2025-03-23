@@ -13,7 +13,6 @@ export class Viewer {
         
         this.setupViewer();
         this.setupControls();
-        this.setupManagers();
         this.setupInitialState();
 
         // Initialize render loop variables
@@ -97,12 +96,6 @@ export class Viewer {
             // focus on the viewer canvas element, so keyboard controls work
             this.viewer.renderer.domElement.focus();
         });
-    }
-
-    setupManagers() {
-        this.controls = new Controls(this.viewer);
-        this.paperManager = new PaperManager(this.viewer);
-        this.uiManager = new UIManager();
     }
 
     setupInitialState() {

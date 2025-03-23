@@ -330,12 +330,15 @@ export class Controls {
             if (this.viewer.focal_i !== myi) {
                 if (I.distance < 50) {
                     this.handlePointSelection(I);
+                    window.paperManager.showPaperCard(myi);
                 } else {
                     this.resetSelection();
+                    window.paperManager.hidePaperCard();
                 }
             }
         } else {
             this.resetSelection();
+            window.paperManager.hidePaperCard();
         }
     }
 
@@ -402,6 +405,27 @@ export class Controls {
         this.viewer.focal_sphere.frustumCulled = false;
         this.viewer.scene.scene.add(this.viewer.focal_sphere);
         this.viewer.focal_i = I.point['mag_id'][0];
+
+        // Add animation to the sphere
+        const animate = () => {
+            if (this.viewer.focal_sphere) {
+                const time = performance.now() * 0.003;
+                const k = 3;
+                const vertices = this.viewer.focal_sphere.geometry.vertices;
+                
+                for (let i = 0; i < vertices.length; i++) {
+                    const p = vertices[i];
+                    p.normalize().multiplyScalar(1 + 0.3 * noise.perlin3(p.x * k + time, p.y * k + time, p.z * k));
+                }
+                
+                this.viewer.focal_sphere.geometry.verticesNeedUpdate = true;
+                this.viewer.focal_sphere.geometry.computeVertexNormals();
+            }
+            
+            requestAnimationFrame(animate);
+        };
+        
+        animate();
     }
 
     resetSelection() {

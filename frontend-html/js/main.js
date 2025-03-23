@@ -1,11 +1,16 @@
 import { Viewer } from './viewer.js';
+import { Controls } from './controls.js';
+import { PaperManager } from './paper.js';
+import { UIManager } from './ui.js';
 
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     // Create the viewer instance and make it globally accessible
     window.viewer = new Viewer();
 
-    console.log('Test1')
+    window.controls = new Controls(window.viewer.viewer);
+    window.paperManager = new PaperManager(window.viewer.viewer);
+    window.uiManager = new UIManager();
     
     // Load the point cloud data
     window.viewer.loadPointCloud('/data/pointclouds/full/metadata.json', function(pc){

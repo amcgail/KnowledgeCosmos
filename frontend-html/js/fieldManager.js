@@ -1,4 +1,6 @@
 import { getColor, hslToRgb, hslToHex } from './utils.js';
+import {STLLoader} from "/libs/three.js/loaders/STLLoader.js";
+import * as THREE from "/libs/three.js/build/three.module.js";
 
 export class FieldManager {
     constructor() {
@@ -142,12 +144,14 @@ export class FieldManager {
                 const $item = $("<div class='legend_item'>");
                 
                 const $r_link = $("<div class='link'>remove</div>").click(() => {
-                    window.viewer.scene.scene.remove(ret.mesh);
+                    window.viewer.viewer.scene.scene.remove(ret.mesh);
                     $item.remove();
                 });
+
+                const c_text = `rgb(${c[0]},${c[1]},${c[2]})`;
                 
                 $item.append(
-                    $(`<svg height="25" width="25" style="stroke:rgb(${c[0]},${c[1]},${c[2]}); stroke-width:2px;">
+                    $(`<svg height="25" width="25" style="stroke:${c_text}; stroke-width:2px; fill:${c_text};">
                         <polygon points="12.5,3 5,20 20,20" class="triangle" />
                     </svg>`),
                     $(`<span class='lab'>${ret.name}</span>`),
@@ -160,8 +164,10 @@ export class FieldManager {
     }
 
     highlightField(which, callback) {
+        const my_color = this.getRandomColor();
+
         const material = new THREE.MeshBasicMaterial({
-            color: this.getRandomColor(),
+            color: my_color.hex,
             wireframe: true,
             wireframeLinewidth: 10
         });
@@ -173,11 +179,11 @@ export class FieldManager {
                 const mesh = new THREE.Mesh(geometry, material);
                 mesh.scale.set(100, 100, 100);
                 material.transparent = true;
-                window.viewer.scene.scene.add(mesh);
-                
+                window.viewer.viewer.scene.scene.add(mesh);
+
                 const ret = {
                     mesh: mesh,
-                    color: this.getRandomColor(),
+                    color: my_color.rgb,
                     name: which
                 };
                 
@@ -195,15 +201,19 @@ export class FieldManager {
 
     getRandomColor() {
         const [h, s, l] = getColor();
-        return hslToHex(h, s, l);
+        return {
+            'hsl': [h, s, l],
+            'rgb': hslToRgb(h, s, l),
+            'hex': hslToHex(h, s, l)
+        }
     }
 
     permanentHighlight(mesh, material) {
-        const X = {op: window.viewer.edlOpacity};
+        const X = {op: window.viewer.viewer.edlOpacity};
         new TWEEN.Tween(X)
             .to({op: 0.8}, 500)
             .onUpdate(() => {
-                window.viewer.setEDLOpacity(X.op);
+                window.viewer.viewer.setEDLOpacity(X.op);
                 material.opacity = 0.8;
             })
             .start();
