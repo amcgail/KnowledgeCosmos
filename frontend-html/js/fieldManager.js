@@ -17,6 +17,7 @@ export class FieldManager {
                 this.fields = data.top_level;
                 this.subfield_colors = data.subfield_colors;
                 this.subfields = data.subfields;
+                this.field_orders = data.field_orders;
                 resolve(data);
             }).fail(reject);
         });
@@ -98,8 +99,16 @@ export class FieldManager {
 
     createLegendExpansion(S) {
         const $ls = $("<div class='legend_expansion'>");
-        
+
+        const subfields = this.field_orders[S];
+
+        // add the other ones
         for (const sub of this.subfields[S]) {
+            if (subfields.includes(sub)) continue;
+            subfields.push(sub);
+        }
+        
+        for (const sub of subfields) {
             const c = this.subfield_colors[S][sub];
             const rgb = `${c[0]*256}, ${c[1]*256}, ${c[2]*256}`;
             

@@ -133,6 +133,8 @@ def ProduceTopLevelPointCloud():
 
     return output_file
 
+DEFAULT_COLOR = (0.2, 0.2, 0.2, 0.5)
+
 @cache
 def ProduceFieldPointClouds():  
     """
@@ -166,7 +168,10 @@ def ProduceFieldPointClouds():
     output_dir.mkdir(exist_ok=True)
 
     # Store color mappings for each field
-    field_colors = defaultdict(dict)
+    field_colors = {}
+    field_orders = {}
+
+    color_options = [[0.5123862745098039, 0.0, 0.6026156862745098, 1.0], [0.13593921568627448, 0.0, 0.6496980392156863, 1.0], [0.0, 0.36603921568627423, 0.8667, 1.0], [0.0, 0.5320431372549019, 0.8667, 1.0], [0.0, 0.613078431372549, 0.8274843137254903, 1.0], [0.0, 0.6601607843137255, 0.6863078431372549, 1.0], [0.0, 0.6667, 0.5856137254901961, 1.0], [0.0, 0.6510058823529411, 0.4078176470588235, 1.0], [0.0, 0.7803823529411762, 0.0, 1.0], [0.2875686274509804, 1.0, 0.0, 1.0], [0.7529078431372549, 0.9934607843137255, 0.0, 1.0], [0.8940843137254902, 0.9463784313725491, 0.0, 1.0], [0.9673039215686274, 0.865343137254902, 0.0, 1.0], [1.0, 0.7568627450980392, 0.0, 1.0], [1.0, 0.615686274509804, 0.0, 1.0], [1.0, 0.27058823529411763, 0.0, 1.0], [0.8222333333333334, 0.0, 0.0, 1.0], [0.8, 0.2980392156862745, 0.2980392156862745, 1.0], [0.8, 0.8, 0.8, 1.0]]
 
     for field_id in field_names:
         if field_id not in top_level:
@@ -182,8 +187,9 @@ def ProduceFieldPointClouds():
         num_subfields = len(field_subfields)
         
         # Sort subfields by paper count and select top 20 for labeling
+        N_to_choose = len(color_options)
         sorted_subfields = sorted(field_subfields, key=lambda x:-len(field_to_papers[x]))
-        labeled_subfields, unlabeled_subfields = sorted_subfields[:20], sorted_subfields[20:]
+        labeled_subfields, unlabeled_subfields = sorted_subfields[:N_to_choose], sorted_subfields[N_to_choose:]
         labeled_subfield_set = set(labeled_subfields)
 
         # Calculate similarity between subfields based on paper overlap
@@ -211,11 +217,20 @@ def ProduceFieldPointClouds():
                     ordered_subfields.append(labeled_subfields[j])
                     break
 
+        # idea 1: tab20
+        # idea 2: the middle of twilight is beautiful cm.twilight_shifted(.2 + 0.7 * i/20)
+        # idea 3: hand chosen colors
+
         # Assign colors to subfields
         field_colors[field_id] = {
-            subfield: cm.tab20(i) 
+            subfield: color_options[
+                # distribute colors evenly
+                int(i * len(color_options)/len(ordered_subfields))
+            ] if i < len(ordered_subfields) else DEFAULT_COLOR
             for i, subfield in enumerate(ordered_subfields + unlabeled_subfields)
         }
+
+        field_orders[field_id] = ordered_subfields
 
         # Get valid papers for this field
         valid_field_papers = sorted(set(field_papers).intersection(valid_paper_ids))
@@ -267,7 +282,7 @@ def ProduceFieldPointClouds():
             if len(paper_subfields):
                 selected_subfield = choice(paper_subfields)
             else:
-                return (1, 1, 1, 1)  # Default white color
+                return DEFAULT_COLOR
                 
             return field_colors[field_id][selected_subfield]
         
@@ -282,7 +297,7 @@ def ProduceFieldPointClouds():
         # Save LAS file
         las.write(output_dir / f"{field_name}.las")
 
-    return field_colors
+    return field_colors, field_orders
 
 if __name__ == '__main__':
     ConvertPotree('D:/3dmap/field_potrees/0TOP.las')
