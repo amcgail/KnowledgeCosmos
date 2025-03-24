@@ -44,17 +44,29 @@ export class Viewer {
         this.viewer.setControls(this.viewer.fpControls);
 
         // Add ambient light
-        const light = new THREE.AmbientLight(0x404040, 0.8);
-        this.viewer.scene.scene.add(light);
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+        this.viewer.scene.scene.add(ambientLight);
+
+        // Add directional lights for proper shading
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1);
+        mainLight.position.set(1000, 1000, 1000);
+        this.viewer.scene.scene.add(mainLight);
+
+        // Add a secondary light from the opposite direction for fill
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        fillLight.position.set(-1000, -1000, -1000);
+        this.viewer.scene.scene.add(fillLight);
 
         // Set initial camera position
         this.viewer.scene.view.position.set(1623, 1950, 1492);
         this.viewer.scene.view.lookAt(730, 691, 725);
 
         // load the UI controls
-        this.viewer.loadGUI().then(() => {
-            this.viewer.setLanguage('en');
-        });
+        if (false) {
+            this.viewer.loadGUI().then(() => {
+                this.viewer.setLanguage('en');
+            });
+        }
     }
 
     setupControls() {
@@ -219,6 +231,7 @@ export class Viewer {
         document.getElementById('skip_intro').style.display = 'none';
         document.getElementById('tips_link').style.display = 'block';
         document.getElementById('comment_link').style.display = 'block';
+        document.getElementsByClassName('toolbar')[0].style.display = 'flex';
     }
 
     startRenderLoop() {

@@ -30,6 +30,11 @@ export class PaperManager {
     constructor(viewer) {
         this.viewer = viewer;
         this.camera = viewer.scene.getActiveCamera();
+        
+        // Create a camera light
+        this.cameraLight = new THREE.PointLight(0xffffff, 0.2, 100);
+        this.cameraLight.position.set(0, 0, 0);
+        this.viewer.scene.scene.add(this.cameraLight);
     }
 
     showPaperCard(id) {
@@ -134,7 +139,7 @@ export class PaperManager {
     handlePointSelection(I) {
         const currentDeltVector = this.camera.position.clone().sub(I.location);
         const direction = currentDeltVector.normalize();
-        const delt = 8;
+        const delt = 6;
         
         const targetPosition = I.location.clone().add(direction.multiplyScalar(delt));
         const targetLookAt = I.location.clone();
@@ -188,7 +193,22 @@ export class PaperManager {
 
     createFocalSphere(I) {
         const sphere_geometry = new THREE.SphereGeometry(1, 128, 128);
-        const material = new THREE.MeshNormalMaterial();
+        // Get the point's color from the rgba attribute and make it brighter
+        const color = new THREE.Color();
+        
+        color.setRGB(
+            I.point['rgba'][0] / 255,
+            I.point['rgba'][1] / 255,
+            I.point['rgba'][2] / 255
+        );
+        // Make the color more vibrant
+        color.multiplyScalar(1.2);
+        const material = new THREE.MeshPhongMaterial({ 
+            color: color,
+            transparent: false,
+            opacity: 1.0,
+            shininess: 5
+        });
         this.viewer.focal_sphere = new THREE.Mesh(sphere_geometry, material);
         this.viewer.focal_sphere.position.set(I.location.x, I.location.y, I.location.z);
         this.viewer.focal_sphere.scale.set(0.15, 0.15, 0.15);
@@ -199,7 +219,7 @@ export class PaperManager {
         // Add animation to the sphere
         const animate = () => {
             if (this.viewer.focal_sphere) {
-                const time = performance.now() * 0.003;
+                const time = performance.now() * 0.0005; // a very slow wobble :)
                 const k = 3;
                 const vertices = this.viewer.focal_sphere.geometry.vertices;
                 
@@ -210,6 +230,9 @@ export class PaperManager {
                 
                 this.viewer.focal_sphere.geometry.verticesNeedUpdate = true;
                 this.viewer.focal_sphere.geometry.computeVertexNormals();
+
+                // Update camera light position
+                this.cameraLight.position.copy(this.camera.position);
             }
             
             requestAnimationFrame(animate);

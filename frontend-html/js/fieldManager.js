@@ -111,7 +111,7 @@ export class FieldManager {
         }
 
         $ls.append(
-            $(`<div class='swatch' style='background-color:rgb(60,60,60)'>`),
+            $(`<div class='swatch' style='background-color:rgb(255,255,255)'>`),
             $("<div class='label'>").html('Other'),
             $("<br>")
         );
