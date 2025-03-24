@@ -2,6 +2,13 @@ import { getColor, hslToRgb, hslToHex } from './utils.js';
 import {STLLoader} from "/libs/three.js/loaders/STLLoader.js";
 import * as THREE from "/libs/three.js/build/three.module.js";
 
+const FIELDS_TO_FORGET = [
+    'Petrology',
+    'Market economy',
+    'Arithmetic',
+    'Geodesy'
+]
+
 export class FieldManager {
     constructor() {
         this.fields = null;
@@ -36,6 +43,8 @@ export class FieldManager {
         const top_fields = Object.keys(this.subfields).sort();
         
         for (const s of top_fields) {
+            if (FIELDS_TO_FORGET.includes(s)) continue;
+
             const $myl = this.createLegendItem(s);
             this.subfield_links.push($myl);
             $l.append($myl);
@@ -120,7 +129,7 @@ export class FieldManager {
         }
 
         $ls.append(
-            $(`<div class='swatch' style='background-color:rgb(255,255,255)'>`),
+            $(`<div class='swatch' style='background-color:rgb(50, 50, 50)'>`),
             $("<div class='label'>").html('Other'),
             $("<br>")
         );
