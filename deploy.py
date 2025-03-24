@@ -178,7 +178,13 @@ else:  # Linux
 # step 4: sync the dist folder to the bucket
 dist_path = 'frontend-html'
 print(f"Syncing {dist_path} to s3://{bucket_name}...")
-returncode, stdout, stderr = run_command(f'aws s3 sync {dist_path} s3://{bucket_name} --acl public-read --verbose')
+print("Starting sync...")
+returncode, stdout, stderr = run_command(f'aws s3 sync {dist_path} s3://{bucket_name} --acl public-read --no-progress')
+if stdout:
+    for line in stdout.splitlines():
+        if line.strip():
+            print(f"Uploading: {line}")
+print("Sync complete.")
 if returncode != 0:
     print(f"Error syncing to S3: {stderr}")
     sys.exit(1)

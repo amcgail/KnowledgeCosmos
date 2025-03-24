@@ -139,7 +139,7 @@ export class PaperManager {
     handlePointSelection(I) {
         const currentDeltVector = this.camera.position.clone().sub(I.location);
         const direction = currentDeltVector.normalize();
-        const delt = 6;
+        const delt = 8;
         
         const targetPosition = I.location.clone().add(direction.multiplyScalar(delt));
         const targetLookAt = I.location.clone();
@@ -170,12 +170,7 @@ export class PaperManager {
             })
             .onComplete(() => {
                 this.viewer.scene.view.lookAt(targetLookAt);
-                setTimeout(() => {
-                    // I'm not sure why, but the orientation flips every now and again,
-                    //  right at the end of the animation.
-                    // Fortunately we can flip it back before the beginning of the next frame.
-                    this.viewer.scene.view.lookAt(targetLookAt);
-                }, 10);
+                this.camera.quaternion.copy(targetQuaternion);
             })
             .start();
 
@@ -211,12 +206,32 @@ export class PaperManager {
         });
         this.viewer.focal_sphere = new THREE.Mesh(sphere_geometry, material);
         this.viewer.focal_sphere.position.set(I.location.x, I.location.y, I.location.z);
-        this.viewer.focal_sphere.scale.set(0.15, 0.15, 0.15);
+        this.viewer.focal_sphere.scale.set(0, 0, 0); // Start at scale 0
         this.viewer.focal_sphere.frustumCulled = false;
         this.viewer.scene.scene.add(this.viewer.focal_sphere);
         this.viewer.focal_i = I.point['mag_id'][0];
 
-        // Add animation to the sphere
+        // Add growth animation
+        const startTime = performance.now();
+        const growAnimation = () => {
+            const elapsed = performance.now() - startTime;
+            const duration = 1000; // 1 second
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Ease out cubic function for smooth animation
+            const easeOutCubic = 1 - Math.pow(1 - progress, 3);
+            const scale = 0.5 * easeOutCubic;
+            
+            this.viewer.focal_sphere.scale.set(scale, scale, scale);
+            
+            if (progress < 1) {
+                requestAnimationFrame(growAnimation);
+            }
+        };
+        
+        growAnimation();
+
+        // Add wobble animation
         const animate = () => {
             if (this.viewer.focal_sphere) {
                 const time = performance.now() * 0.0005; // a very slow wobble :)
