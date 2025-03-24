@@ -212,7 +212,7 @@ export class Viewer {
 
         // Optimize camera movement with better easing
         this.Tstart = new TWEEN.Tween(loc)
-            .to({ x: 1623, y: 1950, z: 1492 }, 60000)
+            .to({ x: 1209, y: 1367, z: 1137 }, 60000)
             .easing(TWEEN.Easing.Quadratic.Out) // Changed to Quadratic for smoother movement
             .onUpdate(() => {
                 this.viewer.scene.view.position.set(loc.x, loc.y, loc.z);
@@ -297,26 +297,14 @@ export class Viewer {
     updateUI() {
         // Update coordinates display
         const camera = this.viewer.scene.getActiveCamera();
-        const coords = `Coordinates: ${Math.round(camera.position.x)}, ${Math.round(camera.position.y)}, ${Math.round(camera.position.z)}`;
-        const speed = `Speed: ${Math.round(this.viewer.getMoveSpeed())}`;
+        const posX = document.getElementById('pos_x');
+        const posY = document.getElementById('pos_y');
+        const posZ = document.getElementById('pos_z');
         
-        const h = `
-            Welcome to the game. I'm thinking now about some tour around this beautiful beast.<br>
-            <div class='smaller'>
-            ${coords}<br/>
-            ${speed}
-            </div>
-        `;
-
-        if (h !== this.lastH) {
-            const info = document.getElementById('game_info');
-            if (info) {
-                const ephemeral = info.querySelector('.ephemeral');
-                if (ephemeral) {
-                    ephemeral.innerHTML = h;
-                }
-            }
-            this.lastH = h;
+        if (posX && posY && posZ) {
+            posX.textContent = Math.round(camera.position.x);
+            posY.textContent = Math.round(camera.position.y);
+            posZ.textContent = Math.round(camera.position.z);
         }
     }
 
@@ -336,10 +324,10 @@ export class Viewer {
         };
         
         new TWEEN.Tween(loc)
-            .to({ x: 1623, y: 1950, z: 1492 }, 1000)
+            .to({ x: 1209, y: 1367, z: 1137 }, 1000)
             .onUpdate(() => {
                 this.viewer.scene.view.position.set(loc.x, loc.y, loc.z);
-                this.viewer.scene.view.lookAt(730, 691, 725);
+                this.viewer.scene.view.lookAt(622, 546, 652);
             })
             .start();
         
@@ -365,7 +353,7 @@ export class Viewer {
         
         new TWEEN.Tween(Y)
             .onUpdate(view_update)
-            .to({x: 1623, y: 1950, z: 1492}, 1000)
+            .to({x: 1209, y: 1367, z: 1137}, 1000)
             .start();
     }
 
@@ -398,7 +386,7 @@ export class Viewer {
                 const result = b.clone().add(curlit);
                 
                 this.viewer.scene.view.position.set(result.x, result.y, result.z);
-                this.viewer.scene.view.lookAt(730, 691, 725);
+                this.viewer.scene.view.lookAt(622, 546, 652);
             })
             .start();
     }

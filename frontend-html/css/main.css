@@ -276,3 +276,24 @@ body {
 .clear-history-btn:hover {
     background: #ff6666;
 }
+
+.position-display {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: rgba(40, 40, 40, 0.8);
+    color: #888;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: monospace;
+    z-index: 1000;
+}
+
+.position-display span {
+    margin-right: 12px;
+}
+
+.position-display span:last-child {
+    margin-right: 0;
+}
