@@ -297,3 +297,8 @@ body {
 .position-display span:last-child {
     margin-right: 0;
 }
+
+/* autocomplete z-index */
+.ui-menu {
+    z-index: 5000;
+}

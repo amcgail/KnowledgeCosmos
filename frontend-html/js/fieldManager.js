@@ -33,19 +33,17 @@ export class FieldManager {
     }
 
     setupFieldAutocomplete() {
-        let fields = this.fields;
-
         $("#constellations-tab #field_lookup").autocomplete({
-            source: function(request, response) {
+            source: (request, response) => {
                 // Filter and sort matches
-                const matches = fields.filter(field => 
+                const matches = this.fields.filter(field => 
                     field.toLowerCase().includes(request.term.toLowerCase())
                 );
                 
                 // Return only top 10 matches
                 response(matches.slice(0, 10));
             },
-            minLength: 3
+            minLength: 2
         });
     }
 
