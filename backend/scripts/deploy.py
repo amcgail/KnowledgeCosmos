@@ -43,3 +43,8 @@ def deploy():
 
 if __name__ == "__main__":
     deploy()
+
+    # now chdir into ../../.. and run deploy.py
+    print('Running the deploy script to push to github')
+    os.chdir('../../..')
+    os.system('python deploy.py')

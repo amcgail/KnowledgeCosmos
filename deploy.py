@@ -12,6 +12,7 @@ import json
 # Load environment variables
 load_dotenv()
 bucket_name = os.getenv('S3_BUCKET_NAME')
+bucket_url = f'https://{bucket_name}.s3.amazonaws.com/'
 
 if not bucket_name:
     print("Error: S3_BUCKET_NAME not found in environment variables")
@@ -40,7 +41,8 @@ else:
     redirect = '>/dev/null 2>&1'
 
 returncode, stdout, stderr = run_command(f'aws s3 ls s3://{bucket_name} {redirect}')
-if returncode != 0:
+bucket_exists = returncode == 0
+if not bucket_exists:
     print(f"Bucket {bucket_name} does not exist. Creating...")
     # Create bucket with default region (us-east-1)
     returncode, stdout, stderr = run_command(f'aws s3api create-bucket --bucket {bucket_name} --region us-east-1')
@@ -143,37 +145,39 @@ os.remove(website_file)
 
 print("Bucket configured for public web access")
 
-# copy a small test index.html file, and navigate to the public URL
-# Create a test index.html file
-test_html = """
-<!DOCTYPE html>
-<html>
-<head><title>Test Page</title></head>
-<body><h1>Test successful!</h1></body>
-</html>
-"""
-with open("test_index.html", "w") as f:
-    f.write(test_html)
+if not bucket_exists:
+    # copy a small test index.html file, and navigate to the public URL
+    # Create a test index.html file
+    # if the bucket exists, we don't need to do this
 
-# Upload the test file with public-read ACL
-returncode, stdout, stderr = run_command(f'aws s3 cp test_index.html s3://{bucket_name}/index.html --acl public-read')
-if returncode != 0:
-    print(f"Error uploading test file: {stderr}")
-    sys.exit(1)
+    test_html = """
+    <!DOCTYPE html>
+    <html>
+    <head><title>Test Page</title></head>
+    <body><h1>Test successful!</h1></body>
+    </html>
+    """
+    with open("test_index.html", "w") as f:
+        f.write(test_html)
 
-# Clean up test file
-os.remove("test_index.html")
+    # Upload the test file with public-read ACL
+    returncode, stdout, stderr = run_command(f'aws s3 cp test_index.html s3://{bucket_name}/index.html --acl public-read')
+    if returncode != 0:
+        print(f"Error uploading test file: {stderr}")
+        sys.exit(1)
 
-# Open the bucket URL in default browser
-bucket_url = f'https://{bucket_name}.s3.amazonaws.com/'
-print(f"\nOpening test page at: {bucket_url}")
+    # Clean up test file
+    os.remove("test_index.html")
 
-if sys.platform == "darwin":  # Mac
-    run_command('open ' + bucket_url)
-elif sys.platform == "win32":  # Windows
-    run_command('start ' + bucket_url)
-else:  # Linux
-    run_command('xdg-open ' + bucket_url)
+    # Open the bucket URL in default browser
+    print(f"\nOpening test page at: {bucket_url}")
+
+    if sys.platform == "darwin":  # Mac
+        run_command('open ' + bucket_url)
+    elif sys.platform == "win32":  # Windows
+        run_command('start ' + bucket_url)
+    else:  # Linux
+        run_command('xdg-open ' + bucket_url)
 
 # step 4: sync the dist folder to the bucket
 dist_path = 'frontend-html'
