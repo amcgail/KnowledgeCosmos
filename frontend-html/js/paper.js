@@ -35,13 +35,181 @@ export class PaperManager {
         this.cameraLight = new THREE.PointLight(0xffffff, 0.2, 100);
         this.cameraLight.position.set(0, 0, 0);
         this.viewer.scene.scene.add(this.cameraLight);
+
+        // Initialize paper history and bookmarks
+        this.paperHistory = [];
+        this.loadHistory();
+        this.setupTabNavigation();
+        this.setupSidebarToggle();
+    }
+
+    setupTabNavigation() {
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons and contents
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+
+                // Add active class to clicked button and corresponding content
+                button.classList.add('active');
+                const tabId = button.getAttribute('data-tab');
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+
+                // Update saved papers list when switching to saved tab
+                if (tabId === 'saved') {
+                    this.updateSavedUI();
+                }
+            });
+        });
+    }
+
+    setupSidebarToggle() {
+        // Update menu items to toggle the right sidebar
+        $('#field_mode').on('click', () => this.toggleRightSidebar('filters'));
+        $('#constellations').on('click', () => this.toggleRightSidebar('constellations'));
+        $('#history_mode').on('click', () => this.toggleRightSidebar('history'));
+
+        // Setup collapse/expand toggle button
+        $('.sidebar-toggle').on('click', () => {
+            const sidebar = $('.right-sidebar');
+            const isCollapsed = sidebar.hasClass('collapsed');
+            
+            if (isCollapsed) {
+                sidebar.removeClass('collapsed');
+                $('#potree_render_area').css('right', '400px');
+                $('.sidebar-toggle').css('right', '400px');
+                $('.fa-chevron-left').hide();
+                $('.fa-chevron-right').show();
+            } else {
+                sidebar.addClass('collapsed');
+                $('#potree_render_area').css('right', '0');
+                $('.sidebar-toggle').css('right', '0');
+                $('.fa-chevron-right').hide();
+                $('.fa-chevron-left').show();
+            }
+        });
+    }
+
+    toggleRightSidebar(tab = null) {
+        const sidebar = $('.right-sidebar');
+        const isVisible = sidebar.is(':visible');
+        
+        if (!isVisible) {
+            sidebar.show().removeClass('collapsed');
+            $('#potree_render_area').css('right', '400px');
+            if (tab) {
+                $(`.tab-btn[data-tab="${tab}"]`).click();
+            }
+        } else {
+            sidebar.hide();
+            $('#potree_render_area').css('right', '0');
+        }
+    }
+
+    loadHistory() {
+        const savedHistory = localStorage.getItem('paperHistory');
+        if (savedHistory) {
+            this.paperHistory = JSON.parse(savedHistory);
+            this.updateHistoryUI();
+        }
+    }
+
+    saveHistory() {
+        localStorage.setItem('paperHistory', JSON.stringify(this.paperHistory));
+        this.updateHistoryUI();
+    }
+
+    updateHistoryUI() {
+        const historyList = $('#history_list');
+        historyList.empty();
+
+        // Add clear all button if there are items
+        if (this.paperHistory.length > 0) {
+            const clearButton = $('<div class="clear-history-btn">Clear All History</div>');
+            clearButton.on('click', () => {
+                this.paperHistory = [];
+                this.saveHistory();
+            });
+            historyList.append(clearButton);
+        }
+
+        this.paperHistory.slice().reverse().forEach(entry => {
+            const item = $('<div class="history-item"></div>');
+            item.html(`
+                <div class="history-content">
+                    <div class="history-title">${entry.title || 'Untitled Paper'}</div>
+                    <div class="history-meta">MAG ID: ${entry.magId}</div>
+                </div>
+                <div class="history-actions">
+                    <span class="delete-btn">🗑️</span>
+                </div>
+            `);
+            
+            // Handle paper selection
+            item.find('.history-content').on('click', () => this.revisitPaper(entry));
+            
+            // Handle delete
+            item.find('.delete-btn').on('click', (e) => {
+                e.stopPropagation();
+                this.paperHistory = this.paperHistory.filter(p => p.magId !== entry.magId);
+                this.saveHistory();
+            });
+            
+            historyList.append(item);
+        });
+    }
+
+    addToHistory(magId, title, position, rgba) {
+        const entry = {
+            magId,
+            title,
+            position: {x: position.x, y: position.y, z: position.z},
+            rgba: rgba || [255, 255, 255, 255], // Store RGBA data
+            timestamp: Date.now()
+        };
+
+        // Remove duplicate if exists
+        this.paperHistory = this.paperHistory.filter(p => p.magId !== magId);
+        
+        // Add to history
+        this.paperHistory.push(entry);
+        
+        // Keep only last 50 papers
+        if (this.paperHistory.length > 50) {
+            this.paperHistory.shift();
+        }
+
+        this.saveHistory();
+    }
+
+    revisitPaper(historyEntry) {
+        const position = new THREE.Vector3(
+            historyEntry.position.x,
+            historyEntry.position.y,
+            historyEntry.position.z
+        );
+
+        // Create a temporary intersection object with RGBA data
+        const I = {
+            point: { 
+                mag_id: [historyEntry.magId],
+                rgba: historyEntry.rgba || [255, 255, 255, 255] // Default to white if no RGBA stored
+            },
+            location: position
+        };
+
+        this.handlePointSelection(I);
+        this.showPaperCard(historyEntry.magId);
     }
 
     showPaperCard(id) {
         $("#potree_render_area").css('left', '400px');
-        $(".card").toggle(true);
-        $(".card .loading-placeholders").show();
-        $(".card>.title, .card>.meta, .card>.tags, .card>.content").hide();
+        $(".paper-details").toggle(true);
+        $(".paper-details .loading-placeholders").show();
+        $(".paper-details>.paper-title, .paper-details>.paper-meta, .paper-details>.paper-tags, .paper-details>.paper-content").hide();
 
         getPaperData(id, (resp) => {
             let link = '';
@@ -49,49 +217,64 @@ export class PaperManager {
                 link = `<a target='_blank' href='https://doi.org/${resp["doi"]}'>Link to Publisher</a>`;
             }
 
-            $(".card .loading-placeholders").hide();
-            $(".card>.title, .card>.meta, .card>.tags, .card>.content").show();
+            $(".paper-details .loading-placeholders").hide();
+            $(".paper-details>.paper-title, .paper-details>.paper-meta, .paper-details>.paper-tags, .paper-details>.paper-content").show();
             
             if (resp) {
-                $(".card>.title").html(resp['title'] || 'No title available');
-                $(".card>.meta").html(
+                const title = resp['title'] || 'No title available';
+                $(".paper-details>.paper-title").html(title);
+                $(".paper-details .meta-content").html(
                     `${resp['year'] || 'No year'} <br/>`
                     + `${resp['venue'] || 'No venue'} <br/>`
                     + `${(resp['authors'] || []).map((x) => x.name).join(', ') || 'No authors'} <br/>`
                     + `${link} <br/>`
                 );
-                $(".card>.content").html(resp['abstract'] || 'No abstract available');
-                $(".card>.tags").html("");
+                $(".paper-details>.paper-content").html(resp['abstract'] || 'No abstract available');
+                $(".paper-details>.paper-tags").html("");
 
                 const fields = [...new Set((resp['s2FieldsOfStudy'] || []).map((x) => x.category))];
                 for (const field of fields) {
-                    $(".card>.tags").append(
-                        $("<span class='tag'>").html(field)
+                    $(".paper-details>.paper-tags").append(
+                        $("<span class='paper-tag'>").html(field)
                     );
                 }
+
+                // Setup bookmark button
+                const bookmarkBtn = $(".paper-details .bookmark-btn");
+                const isBookmarked = this.isPaperBookmarked(id);
+                bookmarkBtn.toggleClass('active', isBookmarked);
+                
+                bookmarkBtn.off('click').on('click', () => {
+                    this.toggleBookmark(id, title);
+                    bookmarkBtn.toggleClass('active');
+                });
+
+                // Add to history when paper is loaded
+                if (this.viewer.focal_sphere) {
+                    this.addToHistory(id, title, this.viewer.focal_sphere.position, resp['rgba']);
+                }
             } else {
-                $(".card>.title").html('Paper not found');
-                $(".card>.meta").html('');
-                $(".card>.content").html('Could not load paper data');
-                $(".card>.tags").html("");
+                $(".paper-details>.paper-title").html('Paper not found');
+                $(".paper-details .meta-content").html('');
+                $(".paper-details>.paper-content").html('Could not load paper data');
+                $(".paper-details>.paper-tags").html("");
             }
         });
     }
 
     hidePaperCard() {
         $("#paper_info").toggle(false);
-        $(".card").toggle(false);
+        $(".paper-details").toggle(false);
         $("#potree_render_area").css('left', '0');
     }
 
-    
     checkAndDisplay() {
         if (!this.viewer.mouse) return;
 
         const e = this.viewer.mouse;
         let m = this.viewer.mouse;
 
-        if ($(".card").is(":visible")) {
+        if ($(".paper-details").is(":visible")) {
             m = new MouseEvent("click", {
                 bubbles: true,
                 cancelable: true,
@@ -139,7 +322,7 @@ export class PaperManager {
     handlePointSelection(I) {
         const currentDeltVector = this.camera.position.clone().sub(I.location);
         const direction = currentDeltVector.normalize();
-        const delt = 8;
+        const delt = 15;
         
         const targetPosition = I.location.clone().add(direction.multiplyScalar(delt));
         const targetLookAt = I.location.clone();
@@ -259,7 +442,75 @@ export class PaperManager {
     resetSelection() {
         this.resetFocalSphere();
         $("#paper_info").toggle(false);
-        $(".card").toggle(false);
+        $(".paper-details").toggle(false);
         $("#potree_render_area").css('left', '0');
+    }
+
+    // Bookmark functionality
+    isPaperBookmarked(magId) {
+        const bookmarks = JSON.parse(localStorage.getItem('paperBookmarks') || '[]');
+        return bookmarks.some(bookmark => bookmark.magId === magId);
+    }
+
+    toggleBookmark(magId, title) {
+        const bookmarks = JSON.parse(localStorage.getItem('paperBookmarks') || '[]');
+        const index = bookmarks.findIndex(bookmark => bookmark.magId === magId);
+        
+        if (index === -1) {
+            bookmarks.push({ magId, title, timestamp: Date.now() });
+        } else {
+            bookmarks.splice(index, 1);
+        }
+        
+        localStorage.setItem('paperBookmarks', JSON.stringify(bookmarks));
+        this.updateSavedUI();
+    }
+
+    updateSavedUI() {
+        const savedList = $('#saved_list');
+        savedList.empty();
+
+        const bookmarks = JSON.parse(localStorage.getItem('paperBookmarks') || '[]');
+        
+        if (bookmarks.length === 0) {
+            savedList.html('<div class="empty-state">No saved papers yet</div>');
+            return;
+        }
+
+        bookmarks.slice().reverse().forEach(bookmark => {
+            const item = $('<div class="saved-item"></div>');
+            item.html(`
+                <div class="saved-content">
+                    <div class="saved-title">${bookmark.title || 'Untitled Paper'}</div>
+                    <div class="saved-meta">MAG ID: ${bookmark.magId}</div>
+                </div>
+                <div class="saved-actions">
+                    <span class="delete-btn">🗑️</span>
+                </div>
+            `);
+            
+            // Handle paper selection
+            item.find('.saved-content').on('click', () => {
+                const position = new THREE.Vector3(0, 0, 0); // Default position
+                const I = {
+                    point: { 
+                        mag_id: [bookmark.magId],
+                        rgba: [255, 255, 255, 255]
+                    },
+                    location: position
+                };
+                this.handlePointSelection(I);
+                this.showPaperCard(bookmark.magId);
+            });
+            
+            // Handle delete
+            item.find('.delete-btn').on('click', (e) => {
+                e.stopPropagation();
+                this.toggleBookmark(bookmark.magId, bookmark.title);
+                this.updateSavedUI();
+            });
+            
+            savedList.append(item);
+        });
     }
 } 

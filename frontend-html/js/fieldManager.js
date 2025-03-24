@@ -6,7 +6,8 @@ const FIELDS_TO_FORGET = [
     'Petrology',
     'Market economy',
     'Arithmetic',
-    'Geodesy'
+    'Geodesy',
+    'Civil engineering',
 ]
 
 export class FieldManager {
@@ -32,8 +33,19 @@ export class FieldManager {
     }
 
     setupFieldAutocomplete() {
-        $("#constellation #field_lookup").autocomplete({
-            source: this.fields
+        let fields = this.fields;
+
+        $("#constellations-tab #field_lookup").autocomplete({
+            source: function(request, response) {
+                // Filter and sort matches
+                const matches = fields.filter(field => 
+                    field.toLowerCase().includes(request.term.toLowerCase())
+                );
+                
+                // Return only top 10 matches
+                response(matches.slice(0, 10));
+            },
+            minLength: 3
         });
     }
 
@@ -155,7 +167,7 @@ export class FieldManager {
     }
 
     setupConstellationAdd() {
-        $("#constellation #field_add").click(() => {
+        $("#constellations-tab #field_add").click(() => {
             const field = $("#field_lookup").val();
             this.highlightField(field, (ret) => {
                 const c = ret.color;

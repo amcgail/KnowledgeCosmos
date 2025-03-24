@@ -462,13 +462,4 @@ export class Viewer {
         this.viewer.scene.addPolygonClipVolume(volume);
     }
 
-    field_mode() {
-        $(".right_boy").toggle(false);
-        $("#legend").toggle(true);
-    }
-
-    constellation() {
-        $(".right_boy").toggle(false);
-        $("#constellation").toggle(true);
-    }
 } 

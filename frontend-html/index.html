@@ -29,16 +29,67 @@
     </div>
 
     <!-- Paper Card -->
-    <div class="card" style="display: none;">
-        <div class="title"></div>
-        <div class="meta"></div>
-        <div class="tags"></div>
-        <div class="content"></div>
+    <div class="paper-details" style="display: none;">
+        <div class="paper-title"></div>
+        <div class="paper-meta">
+            <div class="meta-content"></div>
+            <button class="bookmark-btn" aria-label="Bookmark paper">
+                <i class="fas fa-bookmark"></i>
+            </button>
+        </div>
+        <div class="paper-tags"></div>
+        <div class="paper-content"></div>
         <div class="loading-placeholders" style="display: none;">
             <div class="loading-placeholder title"></div>
             <div class="loading-placeholder meta"></div>
             <div class="loading-placeholder tags"></div>
             <div class="loading-placeholder content"></div>
+        </div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <button class="sidebar-toggle" aria-label="Toggle sidebar">
+        <i class="fas fa-chevron-right" style="display: none;"></i>
+        <i class="fas fa-chevron-left"></i>
+    </button>
+    <div class="right-sidebar collapsed">
+        <div class="sidebar-tabs">
+            <button class="tab-btn active" data-tab="filters">
+                <i class="fas fa-filter"></i> Filters
+            </button>
+            <button class="tab-btn" data-tab="constellations">
+                <i class="fas fa-star"></i> Constellations
+            </button>
+            <button class="tab-btn" data-tab="history">
+                <i class="fas fa-history"></i> History
+            </button>
+            <button class="tab-btn" data-tab="saved">
+                <i class="fas fa-bookmark"></i> Saved
+            </button>
+        </div>
+        
+        <div class="tab-content active" id="filters-tab">
+            <div id="legend"></div>
+        </div>
+        
+        <div class="tab-content" id="constellations-tab">
+            <p>Specify an academic field to show its constellation in the map.
+               This constellation shows the approximate bounds of where papers in the field are located.
+               This can be used along with <i>filter</i> to explore intersections and interactions between fields.</p>
+            <input id="field_lookup" placeholder="Enter an academic field"/>
+            <button id="field_add">Add Constellation</button>
+            <span id="field_bug" style="display:none;"></span>
+            <div id="const_legend"></div>
+        </div>
+        
+        <div class="tab-content" id="history-tab">
+            <p>Your paper exploration history. Click on any paper to revisit it.</p>
+            <div id="history_list"></div>
+        </div>
+        
+        <div class="tab-content" id="saved-tab">
+            <p>Your bookmarked papers. Click on any paper to revisit it.</p>
+            <div id="saved_list"></div>
         </div>
     </div>
 
@@ -58,20 +109,6 @@
     <div id="prettier_game_info">Loading...</div>
     <div id="paper_info" style="display:none"></div>
 
-    <!-- Field Legend -->
-    <div id="legend" class="right_boy" style="display:none;"></div>
-
-    <!-- Constellation Panel -->
-    <div id="constellation" class="right_boy" style="display:none;">
-        <p>Specify an academic field to show its constellation in the map.
-           This constellation shows the approximate bounds of where papers in the field are located.
-           This can be used along with <i>filter</i> to explore intersections and interactions between fields.</p>
-        <input id="field_lookup" placeholder="Enter an academic field"/>
-        <button id="field_add">Add Constellation</button>
-        <span id="field_bug" style="display:none;"></span>
-        <div id="const_legend"></div>
-    </div>
-
     <!-- Reporting -->
     <div id="reporting" style="display:none;"></div>
     <div id="labels"></div>
@@ -80,8 +117,6 @@
     <div id="menu">
         <div class="title" style="display:none;" onclick="window.viewer.home();">The Knowledge Cosmos</div>
         <div class="item" id="skip_intro" onclick="window.viewer.skip_intro();" style="display:none">Skip Intro</div>
-        <div class="item" id="field_mode" onclick="window.viewer.field_mode();" style="display:none">Filters</div>
-        <div class="item" id="constellations" onclick="window.viewer.constellation();" style="display:none">Constellations</div>
     </div>
 
     <!-- Toolbar -->

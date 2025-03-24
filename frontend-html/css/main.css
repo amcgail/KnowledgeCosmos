@@ -29,6 +29,9 @@ body {
 
 #potree_render_area {
     background-color: black;
+    transition: all 0.3s ease-in-out;
+    right: 0;
+    left: 0;
 }
 
 /* Menu */
@@ -36,6 +39,9 @@ body {
     position: absolute;
     top: 0;
     right: 0;
+    width: 100%;
+    /* center items */
+    text-align: center;
     color: white;
     z-index: 1;
     cursor: pointer;
@@ -129,15 +135,16 @@ body {
 
 /* Right Panel */
 .right_boy {
-    position: relative;
-    float: right;
-    width: 300px;
-    z-index: 2;
-    background-color: white;
-    padding: 15px;
-    border-radius: 15px;
-    margin-right: 22px;
-    margin-top: 100px;
+    position: fixed;
+    right: 20px;
+    top: 100px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 5px;
+    max-width: 400px;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 1000;
 }
 
 /* Links */
@@ -198,4 +205,74 @@ body {
 /* Home Description */
 .home-desc {
     display: none !important;
+}
+
+/* History Panel Styles */
+#history_list {
+    margin-top: 15px;
+}
+
+.history-item {
+    padding: 10px;
+    margin: 5px 0;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.history-item:hover {
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.history-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.history-meta {
+    font-size: 0.9em;
+    color: #666;
+}
+
+.history-content {
+    flex: 1;
+    cursor: pointer;
+}
+
+.history-actions {
+    margin-left: 10px;
+}
+
+.delete-btn {
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+    padding: 5px;
+    border-radius: 4px;
+}
+
+.delete-btn:hover {
+    opacity: 1;
+    background: rgba(255, 0, 0, 0.1);
+}
+
+.clear-history-btn {
+    background: #ff4444;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+    margin: 10px 0;
+    transition: background 0.2s ease;
+}
+
+.clear-history-btn:hover {
+    background: #ff6666;
 }
