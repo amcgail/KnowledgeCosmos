@@ -232,6 +232,7 @@ export class Viewer {
         document.getElementById('tips_link').style.display = 'block';
         document.getElementById('comment_link').style.display = 'block';
         document.getElementsByClassName('toolbar')[0].style.display = 'flex';
+        document.getElementsByClassName('sidebar-toggle')[0].style.display = 'flex';
     }
 
     startRenderLoop() {
