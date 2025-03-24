@@ -7,7 +7,7 @@ import trimesh
 
 @cache
 def WriteFieldMeshes(
-    MIN_POINTS = 10_000,
+    MIN_POINTS_MESH = 40_000,
     ALPHA = 3
 ):
 
@@ -17,12 +17,13 @@ def WriteFieldMeshes(
     outd = DATA_FOLDER / 'static' / 'field_meshes'
     outd.mkdir(exist_ok=True)
 
+    fields = []
     for fid in sorted(points_per_subfield, key=lambda x:-len(points_per_subfield[x])):
 
         points = points_per_subfield[fid]
-        if len(points) > MIN_POINTS:
-            points = sample(points, MIN_POINTS)
-        if len(points) < MIN_POINTS:
+        if len(points) > MIN_POINTS_MESH:
+            points = sample(points, MIN_POINTS_MESH)
+        if len(points) < MIN_POINTS_MESH:
             continue
         
         print('processing', fnames[fid], len(points_per_subfield[fid]), 'papers')
@@ -32,5 +33,7 @@ def WriteFieldMeshes(
 
         with open(outd / f"{fnames[fid]}.stl", 'wb') as outf:
             outf.write( trimesh.exchange.export.export_stl(hull) )
+            
+        fields.append(fnames[fid])
 
-    return "Success"
+    return fields

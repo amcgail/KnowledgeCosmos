@@ -21,7 +21,8 @@ export class FieldManager {
     loadFields() {
         return new Promise((resolve, reject) => {
             $.getJSON('/data/fields.json', (data) => {
-                this.fields = data.top_level;
+                this.fields = data.fields;
+                this.top_level = data.top_level;
                 this.subfield_colors = data.subfield_colors;
                 this.subfields = data.subfields;
                 this.field_orders = data.field_orders;

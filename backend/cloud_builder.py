@@ -11,7 +11,7 @@ mesh.WriteFieldMeshes.make(force=True)
 
 #pointclouds.ProduceFieldPointClouds.make(force=True)
 #pointclouds.ConvertPotreeAll.make(force=True)
-pointclouds.ProduceTopLevelPointCloud(force=True)
+#pointclouds.ProduceTopLevelPointCloud(force=True)
 
 # Generate field data JSON and JS files
 deploy.deploy()

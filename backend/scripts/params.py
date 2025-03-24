@@ -5,7 +5,8 @@ when calling cached functions.
 """
 
 force_include = ['Education']  # Fields to always include regardless of size
-MIN_PAPERS = 5000 # minimum number of papers to include a field
+MIN_PAPERS = 5_000 # minimum number of papers to include a subfield
+MIN_POINTS_MESH = 40_000
 ALPHA = 3 # alpha value for the mesh
 
 # Add more configuration parameters here as needed

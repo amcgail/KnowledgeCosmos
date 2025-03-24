@@ -1,5 +1,5 @@
 from .common import *
-from . import fields, pointclouds
+from . import fields, pointclouds, mesh
 
 import json
 
@@ -15,14 +15,13 @@ def expose_field_data():
     ok = lambda x: x in i2n
 
     subgs = {nm(i): [nm(j) for j in v if ok(j)] for i, v in subgs.items() if i in top_level and ok(i)}
-    
     subfield_colors = {nm(i): {nm(j): c for j, c in v.items() if ok(j)} for i, v in colors.items() if ok(i)}
     top_level = sorted([nm(x) for x in top_level if ok(x)])
     field_orders = {nm(i): [nm(j) for j in v if ok(j)] for i, v in orders.items() if ok(i)}
 
     # Create the data structure
     field_data = {
-        "fields": list(fnames.values()),  # All field names
+        "fields": mesh.WriteFieldMeshes(), # just the fields for which we have a mesh
         "subfield_colors": subfield_colors,  # We'll need to implement color generation
         "subfields": subgs,
         "top_level": top_level,
