@@ -145,13 +145,8 @@ export class PaperManager {
         const targetLookAt = I.location.clone();
         
         const startPosition = this.camera.position.clone();
-        const startQuaternion = this.camera.quaternion.clone();
-
-        const m = new THREE.Matrix4();
-        const upsave = this.camera.up.clone();
-        m.lookAt(targetPosition, targetLookAt, this.camera.up);
-
-        const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(m);
+        const startLookAt = new THREE.Vector3();
+        this.camera.getWorldDirection(startLookAt).multiplyScalar(10).add(this.camera.position);
 
         const duration = 2000;
         const tweenObj = { t: 0 };
@@ -160,17 +155,22 @@ export class PaperManager {
             .to({ t: 1 }, duration)
             .easing(TWEEN.Easing.Quadratic.Out)
             .onUpdate(() => {
+                // Interpolate position
                 this.camera.position.lerpVectors(startPosition, targetPosition, tweenObj.t);
-                THREE.Quaternion.slerp(startQuaternion, targetQuaternion, this.camera.quaternion, tweenObj.t);
-                this.viewer.scene.view.position.set(
-                    this.camera.position.x,
-                    this.camera.position.y,
-                    this.camera.position.z
-                );
+                
+                // Interpolate lookAt target
+                const currentLookAt = new THREE.Vector3();
+                currentLookAt.lerpVectors(startLookAt, targetLookAt, tweenObj.t);
+                
+                // Update viewer scene view
+                this.viewer.scene.view.position.copy(this.camera.position);
+                this.viewer.scene.view.lookAt(currentLookAt);
             })
             .onComplete(() => {
+                // Set final position and orientation
+                this.camera.position.copy(targetPosition);
+                this.viewer.scene.view.position.copy(targetPosition);
                 this.viewer.scene.view.lookAt(targetLookAt);
-                this.camera.quaternion.copy(targetQuaternion);
             })
             .start();
 
@@ -248,9 +248,9 @@ export class PaperManager {
 
                 // Update camera light position
                 this.cameraLight.position.copy(this.camera.position);
+                
+                requestAnimationFrame(animate);
             }
-            
-            requestAnimationFrame(animate);
         };
         
         animate();
