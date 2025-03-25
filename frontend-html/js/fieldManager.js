@@ -321,11 +321,22 @@ export class FieldManager {
         
         const camera = window.viewer.viewer.scene.getActiveCamera();
         const cameraPosition = camera.position;
+        const cameraDirection = new THREE.Vector3();
+        camera.getWorldDirection(cameraDirection);
         
         // Calculate distances for all annotations
         const annotationsWithDistances = [];
         window.viewer.viewer.scene.annotations.children.forEach(annotation => {
-            const distance = cameraPosition.distanceTo(annotation.position);
+            // Calculate vector from camera to annotation
+            const toAnnotation = new THREE.Vector3();
+            toAnnotation.subVectors(annotation.position, cameraPosition);
+            
+            // Project the toAnnotation vector onto the camera direction
+            // Negative dot product means the annotation is behind the camera
+            const dot = toAnnotation.dot(cameraDirection);
+            
+            // Use a large distance for points behind the camera
+            const distance = dot < 0 ? 100000 : cameraPosition.distanceTo(annotation.position);
             annotationsWithDistances.push({ annotation, distance });
         });
         
@@ -338,12 +349,31 @@ export class FieldManager {
         const totalVisibleCount = 20; // 5 fully visible + 15 partially visible
         const maxDistance = 1000; // Maximum distance threshold for any label to be visible
         
+        // Define scaling thresholds
+        const minScale = 1.0; // Default size
+        const maxScale = 3.0; // Maximum size multiplier
+        const scaleStartDistance = 200; // Start scaling up when closer than this
+        const scaleEndDistance = 50; // Reach maximum scale at this distance
+        
         annotationsWithDistances.forEach((item, index) => {
             const { annotation, distance } = item;
             const $element = annotation.domElement;
             
-            // If beyond max distance, hide regardless of relative distance ranking
-            if (distance > maxDistance) {
+            // Calculate scale based on distance
+            let scale = minScale;
+            if (distance < scaleStartDistance) {
+                if (distance != 100000) {
+                    // Linear interpolation between min and max scale
+                    const scaleProgress = Math.max(0, (distance - scaleEndDistance) / (scaleStartDistance - scaleEndDistance));
+                    scale = maxScale - (maxScale - minScale) * scaleProgress;
+                    scale = Math.min(maxScale, Math.max(minScale, scale)); // Clamp between min and max
+                } else {
+                    scale = 0;
+                }
+            }
+            
+            // If beyond max distance or behind camera, hide regardless of other conditions
+            if (distance > maxDistance || distance === 100000) {
                 $element.css({
                     'display': 'none',
                     'pointer-events': 'none'
@@ -351,12 +381,22 @@ export class FieldManager {
                 return;
             }
             
-            if (index < fullyVisibleCount) {
+            // Handle visibility based on distance ranking and selection state
+            if (annotation.title === this.selectedFieldName) {
+                // Selected node is always fully visible (if in front of camera)
+                $element.css({
+                    'opacity': '1.0',
+                    'display': 'block',
+                    'pointer-events': 'auto',
+                    'transform': `translate(-50%, -30px) scale(${scale})`
+                });
+            } else if (index < fullyVisibleCount) {
                 // First 5 annotations are fully visible
                 $element.css({
                     'opacity': '1.0',
                     'display': 'block',
-                    'pointer-events': 'auto'
+                    'pointer-events': 'auto',
+                    'transform': `translate(-50%, -30px) scale(${scale})`
                 });
             } else if (index < totalVisibleCount) {
                 // Next 15 annotations fade out linearly
@@ -365,7 +405,8 @@ export class FieldManager {
                 $element.css({
                     'opacity': opacity.toFixed(2),
                     'display': 'block',
-                    'pointer-events': 'auto'
+                    'pointer-events': 'auto',
+                    'transform': `translate(-50%, -30px) scale(${scale})`
                 });
             } else {
                 // Rest are hidden and non-interactive
