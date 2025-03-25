@@ -61,6 +61,9 @@ export class Viewer {
         this.viewer.scene.view.position.set(1623, 1950, 1492);
         this.viewer.scene.view.lookAt(730, 691, 725);
 
+        // Set clip task
+        this.viewer.setClipTask(Potree.ClipTask.SHOW_INSIDE);
+
         // load the UI controls
         if (false) {
             this.viewer.loadGUI().then(() => {
@@ -84,30 +87,188 @@ export class Viewer {
         // Setup control switching
         const flightControl = document.getElementById('flight-control');
         const orbitControl = document.getElementById('orbit-control');
+        const sliceControl = document.getElementById('slice-control');
+        const slicePanel = document.getElementById('slice-panel');
+        
+        // Setup minimize/maximize button for slice panel
+        const sliceToggle = slicePanel.querySelector('.slice-toggle');
+        sliceToggle.addEventListener('click', () => {
+            slicePanel.classList.toggle('minimized');
+        });
         
         // Set initial state - flight controls are default
         this.viewer.setControls(this.viewer.fpControls);
         flightControl.classList.add('selected');
-        orbitControl.classList.remove('selected');
         
         // Setup control switching event listeners
         flightControl.addEventListener('click', () => {
             this.viewer.setControls(this.viewer.fpControls);
-            flightControl.classList.add('selected');
-            orbitControl.classList.remove('selected');
-            
-            // focus on the viewer canvas element, so keyboard controls work
-            this.viewer.renderer.domElement.focus();
         });
         
         orbitControl.addEventListener('click', () => {
             this.viewer.setControls(this.viewer.orbitControls);
-            orbitControl.classList.add('selected');
-            flightControl.classList.remove('selected');
+        });
+
+        // Setup slice control
+        sliceControl.addEventListener('click', () => {
+            // If already selected, do nothing
+            if (sliceControl.classList.contains('selected')) {
+                return;
+            }
             
-            // focus on the viewer canvas element, so keyboard controls work
+            slicePanel.style.display = 'block';
+            this.setupSliceControls();
+
+            // "click" on the axial button
+            const axialBtn = document.querySelector('.orientation-btn[data-orientation="axial"]');
+            axialBtn.click();
+
             this.viewer.renderer.domElement.focus();
         });
+    }
+
+    setupSliceControls() {
+        // Initialize position and thickness values if they don't exist
+        if (!this.slicePositions) {
+            this.slicePositions = {
+                axial: 50,
+                sagittal: 50,
+                coronal: 50
+            };
+            this.sliceThicknesses = {
+                axial: 10,
+                sagittal: 10,
+                coronal: 10
+            };
+        }
+
+        // Setup orientation buttons
+        const orientationButtons = document.querySelectorAll('.orientation-btn');
+        orientationButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                orientationButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                const orientation = btn.dataset.orientation;
+                
+                if (orientation === 'off') {
+                    if (this.sliceVolume) {
+                        this.viewer.scene.removeVolume(this.sliceVolume);
+                        this.sliceVolume = null;
+                    }
+                    return;
+                }
+                
+                // Create slice volume if it doesn't exist
+                if (!this.sliceVolume) {
+                    this.sliceVolume = new Potree.BoxVolume();
+                    this.sliceVolume.name = "Slice";
+                    this.sliceVolume.scale.set(5000, 5000, 5000);
+                    this.sliceVolume.position.set(0, 0, 0);
+                    this.sliceVolume.clip = true;
+                    this.sliceVolume.visible = false;
+                    console.log(this.sliceVolume);
+                    this.viewer.scene.addVolume(this.sliceVolume);
+                }
+                
+                // Update sliders to match stored values
+                document.getElementById('slice-position').value = this.slicePositions[orientation];
+                document.getElementById('slice-thickness').value = this.sliceThicknesses[orientation];
+                document.querySelector('.position-value').textContent = `${this.slicePositions[orientation]}%`;
+                document.querySelector('.thickness-value').textContent = `${this.sliceThicknesses[orientation]}%`;
+                
+                this.updateSliceOrientation(orientation);
+            });
+        });
+
+        // Setup position slider
+        const positionSlider = document.getElementById('slice-position');
+        const positionValue = document.querySelector('.position-value');
+        positionSlider.addEventListener('input', (e) => {
+            const value = e.target.value;
+            positionValue.textContent = `${value}%`;
+            const activeOrientation = document.querySelector('.orientation-btn.active').dataset.orientation;
+            this.slicePositions[activeOrientation] = value;
+            this.updateSlicePosition(value);
+        });
+
+        // Setup thickness slider
+        const thicknessSlider = document.getElementById('slice-thickness');
+        const thicknessValue = document.querySelector('.thickness-value');
+        thicknessSlider.addEventListener('input', (e) => {
+            const value = e.target.value;
+            thicknessValue.textContent = `${value}%`;
+            const activeOrientation = document.querySelector('.orientation-btn.active').dataset.orientation;
+            this.sliceThicknesses[activeOrientation] = value;
+            this.updateSliceThickness(value);
+        });
+    }
+
+    updateSliceOrientation(orientation) {
+        if (!this.sliceVolume) return;
+
+        // Reset box volume to include all points
+        this.sliceVolume.scale.set(5000, 5000, 5000);
+        this.sliceVolume.position.set(0, 0, 0);
+
+        // Apply current thickness
+        this.updateSliceThickness(this.sliceThicknesses[orientation]);
+
+        // Apply current position
+        this.updateSlicePosition(this.slicePositions[orientation]);
+    }
+
+    updateSlicePosition(value) {
+        if (!this.sliceVolume) return;
+
+        const ranges = {
+            'coronal': [90, 1000],
+            'sagittal': [120, 1500],
+            'axial': [280, 1100]
+        }
+
+        const activeOrientation = document.querySelector('.orientation-btn.active').dataset.orientation;
+        let position
+        if(ranges[activeOrientation]) {
+            const [min, max] = ranges[activeOrientation];
+            position = (value / 100) * (max-min) + min;
+        } else {
+            position = (value / 100) * 1000 - 500;
+        }
+
+        console.log(position);
+
+        switch (activeOrientation) {
+            case 'axial':
+                this.sliceVolume.position.z = position;
+                break;
+            case 'sagittal':
+                this.sliceVolume.position.x = position;
+                break;
+            case 'coronal':
+                this.sliceVolume.position.y = position;
+                break;
+        }
+    }
+
+    updateSliceThickness(value) {
+        if (!this.sliceVolume) return;
+
+        const maxThickness = 100;
+        const thickness = (value / 100) * maxThickness;
+
+        const activeOrientation = document.querySelector('.orientation-btn.active').dataset.orientation;
+        switch (activeOrientation) {
+            case 'axial':
+                this.sliceVolume.scale.set(5000, 5000, thickness);
+                break;
+            case 'sagittal':
+                this.sliceVolume.scale.set(thickness, 5000, 5000);
+                break;
+            case 'coronal':
+                this.sliceVolume.scale.set(5000, thickness, 5000);
+                break;
+        }
     }
 
     setupInitialState() {

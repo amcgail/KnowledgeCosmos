@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="css/card.css">
     <link rel="stylesheet" href="css/tips.css">
     <link rel="stylesheet" href="css/loading.css">
+    <link rel="stylesheet" href="css/slice.css">
 </head>
 
 <body>
@@ -124,6 +125,51 @@
         </div>
         <div class="toolbar-item" data-selectable="true" id="rect-select">
             <i class="fas fa-vector-square"></i>
+        </div>
+        <div class="toolbar-item" data-selectable="true" id="slice-control">
+            <i class="fas fa-cut"></i>
+        </div>
+    </div>
+
+    <!-- Slice Control Panel -->
+    <div id="slice-panel" class="slice-panel" style="display: none;">
+        <div class="slice-header">
+            <h3>Slice Controls</h3>
+            <button class="slice-toggle" aria-label="Toggle slice panel">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+        <div class="slice-controls">
+            <div class="slice-orientation">
+                <div class="orientation-buttons">
+                    <button class="orientation-btn" data-orientation="off">
+                        <i class="fas fa-times"></i> Off
+                    </button>
+                    <button class="orientation-btn active" data-orientation="axial">
+                        <i class="fas fa-square"></i> Axial
+                    </button>
+                    <button class="orientation-btn" data-orientation="sagittal">
+                        <i class="fas fa-square"></i> Sagittal
+                    </button>
+                    <button class="orientation-btn" data-orientation="coronal">
+                        <i class="fas fa-square"></i> Coronal
+                    </button>
+                </div>
+            </div>
+            <div class="slice-position">
+                <h4>Slice Position</h4>
+                <div class="position-slider">
+                    <input type="range" id="slice-position" min="0" max="100" value="50">
+                    <span class="position-value">50%</span>
+                </div>
+            </div>
+            <div class="slice-thickness">
+                <h4>Slice Thickness</h4>
+                <div class="thickness-slider">
+                    <input type="range" id="slice-thickness" min="1" max="100" value="10">
+                    <span class="thickness-value">10%</span>
+                </div>
+            </div>
         </div>
     </div>
 

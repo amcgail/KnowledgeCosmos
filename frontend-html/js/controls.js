@@ -149,20 +149,26 @@ export class Controls {
 
         toolbarItems.forEach(item => {
             item.addEventListener('click', () => {
-                toolbarItems.forEach(i => i.classList.remove('selected'));
-                item.classList.toggle('selected');
-                
-                if (item.id === 'rect-select') {
-                    isRectSelectActive = item.classList.contains('selected');
-                    if (!isRectSelectActive) {
-                        rect.style.display = 'none';
-                        this.viewer.fpControls.enabled = true;
-                        this.viewer.orbitControls.enabled = true;
-                    } else {
-                        this.viewer.fpControls.enabled = false;
-                        this.viewer.orbitControls.enabled = false;
-                    }
+                item.classList.toggle('selected', true);
+
+                // flight control and orbit control turn each other off
+                // just handling the classes here
+                if (item.id === 'flight-control') {
+                    $('#orbit-control').removeClass('selected');
                 }
+                if (item.id === 'orbit-control') {
+                    $('#flight-control').removeClass('selected');
+                }
+
+                // and slice control and rect select turn each other off
+                if (item.id === 'slice-control') {
+                    $('#rect-select').removeClass('selected');
+                }
+                if (item.id === 'rect-select') {
+                    $('#slice-control').removeClass('selected');
+                }
+
+                this.viewer.renderer.domElement.focus();
             });
         });
 

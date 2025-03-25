@@ -1,0 +1,129 @@
+.slice-panel {
+    position: fixed;
+    bottom: 0;
+    left: calc(50% + 150px);
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1;
+    min-width: 250px;
+    transition: transform 0.3s ease;
+    transform: translateY(0);
+  }
+
+.slice-panel.minimized {
+    transform: translateY(calc(100% - 60px));
+}
+
+.slice-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+.slice-header h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.slice-toggle {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    padding: 5px;
+    transition: color 0.2s;
+}
+
+.slice-toggle:hover {
+    color: #333;
+}
+
+.slice-toggle i {
+    transition: transform 0.3s ease;
+}
+
+.slice-panel.minimized .slice-toggle i {
+    transform: rotate(180deg);
+}
+
+.slice-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.slice-orientation h4,
+.slice-position h4,
+.slice-thickness h4 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 14px;
+}
+
+.orientation-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.orientation-btn {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #f5f5f5;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.orientation-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+
+.orientation-btn i {
+    font-size: 12px;
+}
+
+.position-slider,
+.thickness-slider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+input[type="range"] {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    background: #ddd;
+    border-radius: 2px;
+    outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #007bff;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.position-value,
+.thickness-value {
+    min-width: 45px;
+    text-align: right;
+    font-size: 12px;
+    color: #666;
+} 
