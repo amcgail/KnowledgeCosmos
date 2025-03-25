@@ -19,6 +19,7 @@ export class FieldManager {
         this.pointCloudCache = new Map(); // Cache for loaded point clouds
         this.field_centers = null; // Store field centers
         this.currentAnnotationConstellation = null;  // Track constellation from annotation clicks only
+        this.selectedFieldName = null; // Track currently selected field
     }
 
     loadFields() {
@@ -232,11 +233,31 @@ export class FieldManager {
     }
 
     handleAnnotationClick(fieldName) {
+        // If clicking the same field again, deselect it
+        if (this.selectedFieldName === fieldName) {
+            if (this.currentAnnotationConstellation) {
+                window.viewer.viewer.scene.scene.remove(this.currentAnnotationConstellation);
+                this.currentAnnotationConstellation = null;
+            }
+            this.updateAnnotationColor(fieldName, 'white'); // Reset color
+            this.selectedFieldName = null;
+            return;
+        }
+
+        // Reset previous selection's color if exists
+        if (this.selectedFieldName) {
+            this.updateAnnotationColor(this.selectedFieldName, 'white');
+        }
+
         // Remove previous annotation constellation if it exists
         if (this.currentAnnotationConstellation) {
             window.viewer.viewer.scene.scene.remove(this.currentAnnotationConstellation);
             this.currentAnnotationConstellation = null;
         }
+
+        // Update the selected field and its color
+        this.selectedFieldName = fieldName;
+        this.updateAnnotationColor(fieldName, '#66B2FF'); // Nice light blue color
 
         const material = new THREE.MeshBasicMaterial({
             color: new THREE.Color(1, 1, 1),  // White
@@ -263,6 +284,17 @@ export class FieldManager {
                 console.error('Error loading field mesh:', error);
             }
         );
+
+        window.viewer.renderer.domElement.focus();
+    }
+
+    updateAnnotationColor(fieldName, color) {
+        // Find the annotation for this field and update its color
+        window.viewer.viewer.scene.annotations.children.forEach(annotation => {
+            if (annotation.title === fieldName) {
+                annotation.domElement.find('.annotation-label').css('color', color);
+            }
+        });
     }
 
     getRandomColor() {
@@ -284,8 +316,68 @@ export class FieldManager {
             .start();
     }
 
+    updateAnnotationOpacities() {
+        if (!this.field_centers || !window.viewer) return;
+        
+        const camera = window.viewer.viewer.scene.getActiveCamera();
+        const cameraPosition = camera.position;
+        
+        // Calculate distances for all annotations
+        const annotationsWithDistances = [];
+        window.viewer.viewer.scene.annotations.children.forEach(annotation => {
+            const distance = cameraPosition.distanceTo(annotation.position);
+            annotationsWithDistances.push({ annotation, distance });
+        });
+        
+        // Sort by distance
+        annotationsWithDistances.sort((a, b) => a.distance - b.distance);
+        
+        // Define visibility thresholds
+        const fullyVisibleCount = 5;
+        const partiallyVisibleCount = 15;
+        const totalVisibleCount = 20; // 5 fully visible + 15 partially visible
+        const maxDistance = 1000; // Maximum distance threshold for any label to be visible
+        
+        annotationsWithDistances.forEach((item, index) => {
+            const { annotation, distance } = item;
+            const $element = annotation.domElement;
+            
+            // If beyond max distance, hide regardless of relative distance ranking
+            if (distance > maxDistance) {
+                $element.css({
+                    'display': 'none',
+                    'pointer-events': 'none'
+                });
+                return;
+            }
+            
+            if (index < fullyVisibleCount) {
+                // First 5 annotations are fully visible
+                $element.css({
+                    'opacity': '1.0',
+                    'display': 'block',
+                    'pointer-events': 'auto'
+                });
+            } else if (index < totalVisibleCount) {
+                // Next 15 annotations fade out linearly
+                const fadeProgress = (index - fullyVisibleCount) / partiallyVisibleCount;
+                const opacity = 0.8 * (1 - fadeProgress); // Start fading from 0.8 opacity
+                $element.css({
+                    'opacity': opacity.toFixed(2),
+                    'display': 'block',
+                    'pointer-events': 'auto'
+                });
+            } else {
+                // Rest are hidden and non-interactive
+                $element.css({
+                    'display': 'none',
+                    'pointer-events': 'none'
+                });
+            }
+        });
+    }
+
     addFieldAnnotations() {
-        console.log(this.field_centers);
         if (!this.field_centers) return;
 
         // Add annotations for each field
@@ -305,8 +397,13 @@ export class FieldManager {
 
             // Add annotation to the scene
             window.viewer.viewer.scene.annotations.add(annotation);
-            
-            console.log(annotation);
         }
+
+        // Set up the update loop for annotation opacities
+        const updateLoop = () => {
+            this.updateAnnotationOpacities();
+            requestAnimationFrame(updateLoop);
+        };
+        updateLoop();
     }
 } 
