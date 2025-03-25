@@ -17,6 +17,8 @@ export class FieldManager {
         this.subfields = null;
         this.subfield_links = [];
         this.pointCloudCache = new Map(); // Cache for loaded point clouds
+        this.field_centers = null; // Store field centers
+        this.currentAnnotationConstellation = null;  // Track constellation from annotation clicks only
     }
 
     loadFields() {
@@ -27,6 +29,7 @@ export class FieldManager {
                 this.subfield_colors = data.subfield_colors;
                 this.subfields = data.subfields;
                 this.field_orders = data.field_orders;
+                this.field_centers = data.field_centers; // Store field centers
                 resolve(data);
             }).fail(reject);
         });
@@ -209,14 +212,14 @@ export class FieldManager {
                 mesh.scale.set(100, 100, 100);
                 material.transparent = true;
                 window.viewer.viewer.scene.scene.add(mesh);
-
+                
                 const ret = {
                     mesh: mesh,
                     color: my_color.rgb,
                     name: which
                 };
                 
-                this.permanentHighlight(mesh, material);
+                this.dimOverallScene();
                 callback(ret);
             },
             (xhr) => {
@@ -224,6 +227,40 @@ export class FieldManager {
             },
             (error) => {
                 console.log(error);
+            }
+        );
+    }
+
+    handleAnnotationClick(fieldName) {
+        // Remove previous annotation constellation if it exists
+        if (this.currentAnnotationConstellation) {
+            window.viewer.viewer.scene.scene.remove(this.currentAnnotationConstellation);
+            this.currentAnnotationConstellation = null;
+        }
+
+        const material = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(1, 1, 1),  // White
+            wireframe: true,
+            wireframeLinewidth: 10,
+            transparent: true,
+            opacity: 0.8
+        });
+
+        const loader = new STLLoader();
+        loader.load(
+            `/data/field_meshes/${fieldName}.stl`,
+            (geometry) => {
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.scale.set(100, 100, 100);
+                window.viewer.viewer.scene.scene.add(mesh);
+                this.currentAnnotationConstellation = mesh;
+                this.dimOverallScene();  // Add the scene dimming effect
+            },
+            (xhr) => {
+                console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
+            },
+            (error) => {
+                console.error('Error loading field mesh:', error);
             }
         );
     }
@@ -237,14 +274,39 @@ export class FieldManager {
         }
     }
 
-    permanentHighlight(mesh, material) {
+    dimOverallScene() {  // Renamed from permanentHighlight
         const X = {op: window.viewer.viewer.edlOpacity};
         new TWEEN.Tween(X)
             .to({op: 0.8}, 500)
             .onUpdate(() => {
                 window.viewer.viewer.setEDLOpacity(X.op);
-                material.opacity = 0.8;
             })
             .start();
+    }
+
+    addFieldAnnotations() {
+        console.log(this.field_centers);
+        if (!this.field_centers) return;
+
+        // Add annotations for each field
+        for (const [fieldName, fieldData] of Object.entries(this.field_centers)) {
+            // Create annotation using the calculated camera position
+            const annotation = new Potree.Annotation({
+                position: fieldData.center,
+                cameraPosition: fieldData.camera_position,
+                cameraTarget: fieldData.center,
+                title: fieldName,
+                description: null
+            });
+            
+            annotation.addEventListener('click', () => {
+                this.handleAnnotationClick(fieldName);
+            });
+
+            // Add annotation to the scene
+            window.viewer.viewer.scene.annotations.add(annotation);
+            
+            console.log(annotation);
+        }
     }
 } 

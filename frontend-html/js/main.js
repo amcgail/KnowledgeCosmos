@@ -2,6 +2,7 @@ import { Viewer } from './viewer.js';
 import { Controls } from './controls.js';
 import { PaperManager } from './paper.js';
 import { UIManager } from './ui.js';
+import { FieldManager } from './fieldManager.js';
 
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -11,12 +12,18 @@ document.addEventListener('DOMContentLoaded', () => {
     window.controls = new Controls(window.viewer.viewer);
     window.paperManager = new PaperManager(window.viewer.viewer);
     window.uiManager = new UIManager();
+    window.fieldManager = new FieldManager();
     
     // Load the point cloud data
     window.viewer.loadPointCloud('/data/pointclouds/full/metadata.json', function(pc){
         // Store references
         window.main_pc = pc;
         window.viewer.startPresentation();
+
+        // Load fields and add annotations
+        window.fieldManager.loadFields().then(() => {
+            window.fieldManager.addFieldAnnotations();
+        });
 
         // Mouse move tracking
         $(document).on('mousemove', (e) => {

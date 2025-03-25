@@ -9,6 +9,7 @@ def expose_field_data():
     top_level = fields.GetTopLevel()
     subgs = fields.GetSubFields()
     colors, orders = pointclouds.ProduceFieldPointClouds()
+    field_centers = mesh.GetFieldCenters()
 
     i2n = fields.GetFieldNames()
     nm = lambda x: i2n[x]
@@ -26,7 +27,8 @@ def expose_field_data():
         "subfields": subgs,
         "top_level": top_level,
         "field_colors": colors,
-        "field_orders": field_orders
+        "field_orders": field_orders,
+        "field_centers": field_centers  # Add the field centers to the output
     }
 
     # Create static directory if it doesn't exist
@@ -43,8 +45,3 @@ def deploy():
 
 if __name__ == "__main__":
     deploy()
-
-    # now chdir into ../../.. and run deploy.py
-    print('Running the deploy script to push to github')
-    os.chdir('../../..')
-    os.system('python deploy.py')
