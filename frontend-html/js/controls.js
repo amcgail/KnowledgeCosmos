@@ -149,22 +149,31 @@ export class Controls {
 
         toolbarItems.forEach(item => {
             item.addEventListener('click', () => {
-                item.classList.toggle('selected', true);
 
                 // flight control and orbit control turn each other off
                 // just handling the classes here
                 if (item.id === 'flight-control') {
+                    item.classList.toggle('selected', true);
                     $('#orbit-control').removeClass('selected');
                 }
                 if (item.id === 'orbit-control') {
+                    item.classList.toggle('selected', true);
                     $('#flight-control').removeClass('selected');
+                }
+
+                if (item.id === 'label-toggle') {
+                    item.classList.toggle('selected');
+                    const labels_on = $('#label-toggle').hasClass('selected');
+                    window.fieldManager.labelsVisible = labels_on;
                 }
 
                 // and slice control and rect select turn each other off
                 if (item.id === 'slice-control') {
+                    item.classList.toggle('selected', true);
                     $('#rect-select').removeClass('selected');
                 }
                 if (item.id === 'rect-select') {
+                    item.classList.toggle('selected', true);
                     $('#slice-control').removeClass('selected');
                 }
 

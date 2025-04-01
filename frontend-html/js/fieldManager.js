@@ -10,6 +10,20 @@ const FIELDS_TO_FORGET = [
     'Civil engineering',
 ]
 
+// Add list of central fields that should always be visible
+const CENTRAL_FIELDS = [
+    'Mathematics',
+    'Physics',
+    'Chemistry',
+    'Biology',
+    'Computer science',
+    'Engineering',
+    'Medicine',
+    'Psychology',
+    'Economics',
+    'Sociology'
+];
+
 export class FieldManager {
     constructor() {
         this.fields = null;
@@ -20,6 +34,7 @@ export class FieldManager {
         this.field_centers = null; // Store field centers
         this.currentAnnotationConstellation = null;  // Track constellation from annotation clicks only
         this.selectedFieldName = null; // Track currently selected field
+        this.labelsVisible = false;
     }
 
     loadFields() {
@@ -347,7 +362,8 @@ export class FieldManager {
         const fullyVisibleCount = 5;
         const partiallyVisibleCount = 15;
         const totalVisibleCount = 20; // 5 fully visible + 15 partially visible
-        const maxDistance = 1000; // Maximum distance threshold for any label to be visible
+        const maxDistance = 1000; // Maximum distance threshold for regular labels
+        const centralMaxDistance = 2000; // Maximum distance threshold for central fields
         
         // Define scaling thresholds
         const minScale = 1.0; // Default size
@@ -355,9 +371,24 @@ export class FieldManager {
         const scaleStartDistance = 200; // Start scaling up when closer than this
         const scaleEndDistance = 50; // Reach maximum scale at this distance
         
+        // Define central field opacity thresholds
+        const centralMinOpacity = 0.4; // Minimum opacity for central fields
+        const centralMaxOpacity = 0.9; // Maximum opacity for central fields
+        const centralFadeStartDistance = 1500; // Start fading central fields at this distance
+        const centralFadeEndDistance = 2000; // Complete fade at this distance
+        
         annotationsWithDistances.forEach((item, index) => {
             const { annotation, distance } = item;
             const $element = annotation.domElement;
+            const isCentralField = CENTRAL_FIELDS.includes(annotation.title);
+            
+            if (!this.labelsVisible) {
+                $element.css({
+                    'display': 'none',
+                    'pointer-events': 'none'
+                });
+                return;
+            }
             
             // Calculate scale based on distance
             let scale = minScale;
@@ -372,8 +403,9 @@ export class FieldManager {
                 }
             }
             
-            // If beyond max distance or behind camera, hide regardless of other conditions
-            if (distance > maxDistance || distance === 100000) {
+            // Handle visibility based on distance and field type
+            if (distance === 100000) {
+                // Hide all fields (including central) if behind camera
                 $element.css({
                     'display': 'none',
                     'pointer-events': 'none'
@@ -381,14 +413,43 @@ export class FieldManager {
                 return;
             }
             
-            // Handle visibility based on distance ranking and selection state
-            if (annotation.title === this.selectedFieldName) {
+            if (isCentralField) {
+                if (distance > centralMaxDistance) {
+                    // Hide central fields at extreme distances
+                    $element.css({
+                        'display': 'none',
+                        'pointer-events': 'none'
+                    });
+                    return;
+                }
+                
+                // Calculate opacity for central fields based on distance
+                let opacity = centralMaxOpacity;
+                if (distance > centralFadeStartDistance) {
+                    const fadeProgress = (distance - centralFadeStartDistance) / (centralFadeEndDistance - centralFadeStartDistance);
+                    opacity = centralMaxOpacity - (centralMaxOpacity - centralMinOpacity) * fadeProgress;
+                    opacity = Math.max(centralMinOpacity, Math.min(centralMaxOpacity, opacity));
+                }
+                
+                $element.css({
+                    'opacity': opacity.toFixed(2),
+                    'display': 'block',
+                    'pointer-events': 'auto',
+                    'transform': `translate(-50%, -30px) scale(${scale})`
+                });
+            } else if (annotation.title === this.selectedFieldName) {
                 // Selected node is always fully visible (if in front of camera)
                 $element.css({
                     'opacity': '1.0',
                     'display': 'block',
                     'pointer-events': 'auto',
                     'transform': `translate(-50%, -30px) scale(${scale})`
+                });
+            } else if (distance > maxDistance) {
+                // Hide non-central fields at regular max distance
+                $element.css({
+                    'display': 'none',
+                    'pointer-events': 'none'
                 });
             } else if (index < fullyVisibleCount) {
                 // First 5 annotations are fully visible
