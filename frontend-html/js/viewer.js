@@ -115,8 +115,8 @@ export class Viewer {
         });
         
         // Base movement speed and speed parameters
-        const baseSpeed = 0.5;
-        const maxSpeed = 5000.0;
+        const baseSpeed = 5;
+        const maxSpeed = 500.0;
         const speedExponent = 3;
         const cloudCenter = new THREE.Vector3(730, 691, 725); // Approximate center of the cloud
         
@@ -138,7 +138,7 @@ export class Viewer {
             const distance = camera.position.distanceTo(cloudCenter);
             
             // Calculate speed with exponential increase
-            const speedMultiplier = Math.min(maxSpeed, baseSpeed * Math.pow(distance / 100, speedExponent));
+            const speedMultiplier = Math.min(maxSpeed, baseSpeed * Math.pow(distance / 400, speedExponent));
 
             console.log(speedMultiplier);
             
@@ -348,8 +348,11 @@ export class Viewer {
                 let pcs = this.viewer.scene.pointclouds;
                 if (pcs[pcs.length - 1].visibleNodes.length > 0 || loadCheckCount >= maxLoadChecks) {
                     clearInterval(checkLoaded);
-                    // Show message container after loading is complete
-                    document.querySelector('.message-container').classList.add('visible');
+                    // Safely check if message container exists before showing it (for intro)
+                    const messageContainer = document.querySelector('.message-container');
+                    if (messageContainer) {
+                        messageContainer.classList.add('visible');
+                    }
                     callback(pointcloud);
                 } else {
                     loadCheckCount++;
