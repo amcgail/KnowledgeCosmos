@@ -23,6 +23,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    position: relative;
   }
   
   .toolbar-item:hover {
@@ -67,4 +68,50 @@
   
   .toggle-switch.active::after {
     left: 22px;
+  }
+
+  /* Tooltip styles */
+  .toolbar-item .tooltip {
+    visibility: hidden;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    white-space: nowrap;
+    margin-bottom: 8px;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .toolbar-item .tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
+  }
+
+  .toolbar-item:hover .tooltip {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  .toolbar-item .tooltip-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  .toolbar-item .tooltip-description {
+    font-size: 12px;
+    opacity: 0.9;
   }
