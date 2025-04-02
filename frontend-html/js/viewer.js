@@ -490,8 +490,14 @@ export class Viewer {
                 messageText.style.maxWidth = '100%';
                 messageText.style.width = '100%';
                 
-                // Hide progress bar and scroll indicator
-                if (progressBar) progressBar.style.display = 'none';
+                // Keep progress bar visible and update its progress
+                if (progressBar) {
+                    progressBar.style.display = 'block';
+                    const circleProgress = (this.scrollProgress - this.zoomSteps) / this.circleSteps;
+                    progressBar.style.width = `${circleProgress * 100}%`;
+                }
+                
+                // Hide only the scroll indicator
                 if (scrollIndicator) scrollIndicator.style.display = 'none';
             } else {
                 // Update message text
