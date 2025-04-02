@@ -258,12 +258,16 @@ export class FieldManager {
             }
             this.updateAnnotationColor(fieldName, 'white'); // Reset color
             this.selectedFieldName = null;
+            // Remove from constellations legend if exists
+            $(`#const_legend .legend_item:has(span:contains('${fieldName}'))`).remove();
             return;
         }
 
         // Reset previous selection's color if exists
         if (this.selectedFieldName) {
             this.updateAnnotationColor(this.selectedFieldName, 'white');
+            // Remove previous field from constellations legend if exists
+            $(`#const_legend .legend_item:has(span:contains('${this.selectedFieldName}'))`).remove();
         }
 
         // Remove previous annotation constellation if it exists
@@ -272,12 +276,15 @@ export class FieldManager {
             this.currentAnnotationConstellation = null;
         }
 
+        // Get a random color like constellations do
+        const my_color = this.getRandomColor();
+
         // Update the selected field and its color
         this.selectedFieldName = fieldName;
-        this.updateAnnotationColor(fieldName, '#66B2FF'); // Nice light blue color
+        this.updateAnnotationColor(fieldName, `rgb(${my_color.rgb[0]},${my_color.rgb[1]},${my_color.rgb[2]})`);
 
         const material = new THREE.MeshBasicMaterial({
-            color: new THREE.Color(1, 1, 1),  // White
+            color: my_color.hex,
             wireframe: true,
             wireframeLinewidth: 10,
             transparent: true,
@@ -293,6 +300,28 @@ export class FieldManager {
                 window.viewer.viewer.scene.scene.add(mesh);
                 this.currentAnnotationConstellation = mesh;
                 this.dimOverallScene();  // Add the scene dimming effect
+
+                // Add to constellations legend
+                const $item = $("<div class='legend_item'>");
+                const $r_link = $("<div class='link'>remove</div>").click(() => {
+                    window.viewer.viewer.scene.scene.remove(mesh);
+                    this.updateAnnotationColor(fieldName, 'white');
+                    this.selectedFieldName = null;
+                    this.currentAnnotationConstellation = null;
+                    $item.remove();
+                });
+
+                const c_text = `rgb(${my_color.rgb[0]},${my_color.rgb[1]},${my_color.rgb[2]})`;
+                
+                $item.append(
+                    $(`<svg height="25" width="25" style="stroke:${c_text}; stroke-width:2px; fill:${c_text};">
+                        <polygon points="12.5,3 5,20 20,20" class="triangle" />
+                    </svg>`),
+                    $(`<span class='lab'>${fieldName}</span>`),
+                    $r_link
+                );
+                
+                $("#const_legend").append($item);
             },
             (xhr) => {
                 console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
