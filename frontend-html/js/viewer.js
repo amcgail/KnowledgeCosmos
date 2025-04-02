@@ -76,17 +76,81 @@ export class Viewer {
         // Set initial camera mode
         this.viewer.setCameraMode(Potree.CameraMode.PERSPECTIVE);
         
-        // General control settings
-        this.viewer.fpControls.lockElevation = false;
-        this.viewer.fpControls.rotationSpeed = 25;
-        this.viewer.fpControls.maxPolarAngle = Math.PI / 2;
+        // Always use orbit controls
+        this.viewer.setControls(this.viewer.orbitControls);
         
+        // Configure orbit controls
         this.viewer.orbitControls.enableDamping = true;
         this.viewer.orbitControls.dampingFactor = 0.05;
+        this.viewer.orbitControls.rotateSpeed = 1.0;
         
-        // Setup control switching
-        const flightControl = document.getElementById('flight-control');
-        const orbitControl = document.getElementById('orbit-control');
+        // Track key states for continuous movement
+        const keyStates = {
+            ArrowUp: false,
+            ArrowDown: false,
+            ArrowLeft: false,
+            ArrowRight: false,
+            w: false,
+            s: false,
+            a: false,
+            d: false
+        };
+        
+        // Handle key down
+        document.addEventListener('keydown', (event) => {
+            const key = event.key.toLowerCase();
+            if (key in keyStates) {
+                keyStates[key] = true;
+                console.log('Key pressed:', key);
+            }
+        });
+        
+        // Handle key up
+        document.addEventListener('keyup', (event) => {
+            const key = event.key.toLowerCase();
+            if (key in keyStates) {
+                keyStates[key] = false;
+                console.log('Key released:', key);
+            }
+        });
+        
+        // Continuous movement update
+        const moveSpeed = 0.5; // Adjust this value to change movement speed
+        const moveUpdate = () => {
+            const view = this.viewer.scene.view;
+            const moveVector = new THREE.Vector3();
+            
+            // Get camera's local axes
+            const camera = this.viewer.scene.getActiveCamera();
+            const forward = new THREE.Vector3(0, 0, -1);
+            const right = new THREE.Vector3(1, 0, 0);
+            
+            // Apply camera's rotation to the axes
+            forward.applyQuaternion(camera.quaternion);
+            right.applyQuaternion(camera.quaternion);
+            
+            // Handle both arrow keys and WASD
+            if (keyStates['arrowup'] || keyStates['w']) moveVector.add(forward.multiplyScalar(moveSpeed));
+            if (keyStates['arrowdown'] || keyStates['s']) moveVector.add(forward.multiplyScalar(-moveSpeed));
+            if (keyStates['arrowleft'] || keyStates['a']) moveVector.add(right.multiplyScalar(-moveSpeed));
+            if (keyStates['arrowright'] || keyStates['d']) moveVector.add(right.multiplyScalar(moveSpeed));
+            
+            if (moveVector.length() > 0) {
+                // Move the view position
+                view.position.set(
+                    view.position.x + moveVector.x, 
+                    view.position.y + moveVector.y, 
+                    view.position.z + moveVector.z
+                );
+            }
+            
+            requestAnimationFrame(moveUpdate);
+        };
+        
+        // Start the movement update loop
+        moveUpdate();
+        
+        // Setup slice control
         const sliceControl = document.getElementById('slice-control');
         const slicePanel = document.getElementById('slice-panel');
         
@@ -94,36 +158,6 @@ export class Viewer {
         const sliceToggle = slicePanel.querySelector('.slice-toggle');
         sliceToggle.addEventListener('click', () => {
             slicePanel.classList.toggle('minimized');
-        });
-        
-        // Set initial state - flight controls are default
-        this.viewer.setControls(this.viewer.fpControls);
-        flightControl.classList.add('selected');
-        
-        // Setup control switching event listeners
-        flightControl.addEventListener('click', () => {
-            this.viewer.setControls(this.viewer.fpControls);
-        });
-        
-        orbitControl.addEventListener('click', () => {
-            this.viewer.setControls(this.viewer.orbitControls);
-        });
-
-        // Setup slice control
-        sliceControl.addEventListener('click', () => {
-            // If already selected, do nothing
-            if (sliceControl.classList.contains('selected')) {
-                return;
-            }
-            
-            slicePanel.style.display = 'block';
-            this.setupSliceControls();
-
-            // "click" on the axial button
-            const axialBtn = document.querySelector('.orientation-btn[data-orientation="axial"]');
-            axialBtn.click();
-
-            this.viewer.renderer.domElement.focus();
         });
     }
 
@@ -595,6 +629,7 @@ export class Viewer {
     updateUI() {
         // Update coordinates display
         const camera = this.viewer.scene.getActiveCamera();
+        
         const posX = document.getElementById('pos_x');
         const posY = document.getElementById('pos_y');
         const posZ = document.getElementById('pos_z');
