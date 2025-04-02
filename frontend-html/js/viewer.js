@@ -312,15 +312,98 @@ export class Viewer {
     startPresentation() {
         // Initialize presentation state
         this.intro_cancelled = false;
+        this.scrollProgress = 0;
+        this.zoomSteps = 600; // 60 seconds worth of steps
+        this.circleSteps = 190; // 19 seconds worth of steps
+        this.maxScroll = this.zoomSteps + this.circleSteps;
         
         // Show skip intro button
         document.getElementById('skip_intro').style.display = 'block';
         
         // Start the presentation sequence
         this.startPresentationSequence();
+        
+        // Add scroll event listener
+        this.handleScrollBound = this.handleScroll.bind(this);
+        window.addEventListener('wheel', this.handleScrollBound, { passive: false });
 
         // Start camera movement
-        this.startCameraMovement();
+        this.updateCameraPosition();
+    }
+
+    handleScroll(event) {
+        event.preventDefault();
+        
+        if (event.deltaY > 0) {
+            this.scrollProgress = Math.min(this.maxScroll, this.scrollProgress + 1);
+        } else {
+            this.scrollProgress = Math.max(0, this.scrollProgress - 1);
+        }
+        
+        this.displayCurrentMessage();
+        this.updateCameraPosition();
+    }
+
+    updateCameraPosition() {
+        const progress = this.scrollProgress / this.maxScroll;
+        
+        if (this.scrollProgress <= this.zoomSteps) {
+            // Zoom phase
+            const zoomProgress = this.scrollProgress / this.zoomSteps;
+            
+            // Calculate camera position
+            const startPos = { x: 1623, y: 1950, z: 1492 };
+            const endPos = { x: 1209, y: 1367, z: 1137 };
+            
+            const currentPos = {
+                x: startPos.x + (endPos.x - startPos.x) * zoomProgress,
+                y: startPos.y + (endPos.y - startPos.y) * zoomProgress,
+                z: startPos.z + (endPos.z - startPos.z) * zoomProgress
+            };
+
+            // Calculate look-at point
+            const startLookAt = { x: 730, y: 691, z: 725 };
+            const endLookAt = { x: 622, y: 546, z: 652 };
+            
+            const currentLookAt = {
+                x: startLookAt.x + (endLookAt.x - startLookAt.x) * zoomProgress,
+                y: startLookAt.y + (endLookAt.y - startLookAt.y) * zoomProgress,
+                z: startLookAt.z + (endLookAt.z - startLookAt.z) * zoomProgress
+            };
+
+            // Update camera position and look-at point
+            this.viewer.scene.view.position.set(currentPos.x, currentPos.y, currentPos.z);
+            this.viewer.scene.view.lookAt(currentLookAt.x, currentLookAt.y, currentLookAt.z);
+        } else {
+            // Circle phase
+            const circleProgress = (this.scrollProgress - this.zoomSteps) / this.circleSteps;
+            const angle = circleProgress * 2 * Math.PI;
+            
+            // Get the final zoom position as starting point
+            const a = new THREE.Vector3(1209, 1367, 1137);
+            
+            // Get the center point
+            const b = new THREE.Vector3(730, 691, 725);
+            
+            // Calculate the vector from center to camera
+            const curlit = a.clone().sub(b);
+            
+            // Rotate this vector around the camera's up axis
+            curlit.applyAxisAngle(this.viewer.scene.getActiveCamera().up, angle);
+            
+            // Calculate the final position
+            const result = b.clone().add(curlit);
+            
+            // Update camera position and look-at point
+            this.viewer.scene.view.position.set(result.x, result.y, result.z);
+            this.viewer.scene.view.lookAt(622, 546, 652);
+        }
+
+        // If we've reached the end, increase point budget and end presentation
+        if (this.scrollProgress >= this.maxScroll) {
+            this.viewer.setPointBudget(2_000_000);
+            this.doneWithIntro();
+        }
     }
 
     startPresentationSequence() {
@@ -335,17 +418,46 @@ export class Viewer {
             ['END', 8]
         ];
 
-        let currentIndex = 0;
-        const displayNext = () => {
-            if (!sequence.length || this.intro_cancelled) {
-                this.doneWithIntro();
-                return;
-            }
-
-            const [text, duration] = sequence.shift();
-            const infoElement = document.getElementById('prettier_game_info');
-
+        // Calculate total duration of messages (excluding END)
+        const totalDuration = sequence.slice(0, -1).reduce((sum, [_, duration]) => sum + duration, 0);
+        
+        // Calculate scroll steps per second for the zoom phase
+        const stepsPerSecond = this.zoomSteps / totalDuration;
+        
+        // Calculate scroll positions for each message
+        this.messagePositions = sequence.map(([text, duration], index) => {
             if (text === 'END') {
+                return {
+                    text,
+                    startScroll: this.zoomSteps,
+                    endScroll: this.maxScroll
+                };
+            }
+            
+            const startScroll = index === 0 ? 0 : 
+                sequence.slice(0, index).reduce((sum, [_, d]) => sum + (d * stepsPerSecond), 0);
+            
+            return {
+                text,
+                startScroll,
+                endScroll: startScroll + (duration * stepsPerSecond)
+            };
+        });
+
+        // Display initial message
+        this.displayCurrentMessage();
+    }
+
+    displayCurrentMessage() {
+        const infoElement = document.getElementById('prettier_game_info');
+        
+        // Find the current message based on scroll position
+        const currentMessage = this.messagePositions.find(msg => 
+            this.scrollProgress >= msg.startScroll && this.scrollProgress <= msg.endScroll
+        );
+
+        if (currentMessage) {
+            if (currentMessage.text === 'END') {
                 infoElement.innerHTML = "THE KNOWLEDGE COSMOS";
                 infoElement.style.cssText = `
                     font-size: 80pt;
@@ -354,39 +466,16 @@ export class Viewer {
                     width: 100%;
                 `;
             } else {
-                infoElement.innerHTML = text;
+                infoElement.innerHTML = currentMessage.text;
                 infoElement.style.cssText = '';
             }
-
-            setTimeout(displayNext, duration * 1000);
-        };
-
-        displayNext();
-    }
-
-    startCameraMovement() {
-        const loc = {
-            x: this.viewer.scene.view.position.x,
-            y: this.viewer.scene.view.position.y,
-            z: this.viewer.scene.view.position.z
-        };
-
-        // Optimize camera movement with better easing
-        this.Tstart = new TWEEN.Tween(loc)
-            .to({ x: 1209, y: 1367, z: 1137 }, 60000)
-            .easing(TWEEN.Easing.Quadratic.Out) // Changed to Quadratic for smoother movement
-            .onUpdate(() => {
-                this.viewer.scene.view.position.set(loc.x, loc.y, loc.z);
-                this.viewer.scene.view.lookAt(730, 691, 725);
-            })
-            .onComplete(() => {
-                this.circle(19000);
-                this.viewer.setPointBudget(2_000_000);
-            })
-            .start();
+        }
     }
 
     doneWithIntro() {
+        // Remove scroll event listener
+        window.removeEventListener('wheel', this.handleScrollBound);
+        
         document.getElementById('prettier_game_info').innerHTML = '';
         document.querySelectorAll('#menu div').forEach(el => el.style.display = 'block');
         document.getElementById('skip_intro').style.display = 'none';
