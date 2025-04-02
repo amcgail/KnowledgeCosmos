@@ -114,8 +114,13 @@ export class Viewer {
             }
         });
         
+        // Base movement speed and speed parameters
+        const baseSpeed = 0.5;
+        const maxSpeed = 5000.0;
+        const speedExponent = 3;
+        const cloudCenter = new THREE.Vector3(730, 691, 725); // Approximate center of the cloud
+        
         // Continuous movement update
-        const moveSpeed = 0.5; // Adjust this value to change movement speed
         const moveUpdate = () => {
             const view = this.viewer.scene.view;
             const moveVector = new THREE.Vector3();
@@ -129,11 +134,19 @@ export class Viewer {
             forward.applyQuaternion(camera.quaternion);
             right.applyQuaternion(camera.quaternion);
             
+            // Calculate distance from cloud center
+            const distance = camera.position.distanceTo(cloudCenter);
+            
+            // Calculate speed with exponential increase
+            const speedMultiplier = Math.min(maxSpeed, baseSpeed * Math.pow(distance / 100, speedExponent));
+
+            console.log(speedMultiplier);
+            
             // Handle both arrow keys and WASD
-            if (keyStates['arrowup'] || keyStates['w']) moveVector.add(forward.multiplyScalar(moveSpeed));
-            if (keyStates['arrowdown'] || keyStates['s']) moveVector.add(forward.multiplyScalar(-moveSpeed));
-            if (keyStates['arrowleft'] || keyStates['a']) moveVector.add(right.multiplyScalar(-moveSpeed));
-            if (keyStates['arrowright'] || keyStates['d']) moveVector.add(right.multiplyScalar(moveSpeed));
+            if (keyStates['arrowup'] || keyStates['w']) moveVector.add(forward.multiplyScalar(speedMultiplier));
+            if (keyStates['arrowdown'] || keyStates['s']) moveVector.add(forward.multiplyScalar(-speedMultiplier));
+            if (keyStates['arrowleft'] || keyStates['a']) moveVector.add(right.multiplyScalar(-speedMultiplier));
+            if (keyStates['arrowright'] || keyStates['d']) moveVector.add(right.multiplyScalar(speedMultiplier));
             
             if (moveVector.length() > 0) {
                 // Move the view position
