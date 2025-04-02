@@ -320,6 +320,23 @@ export class Viewer {
         // Show skip intro button
         document.getElementById('skip_intro').style.display = 'block';
         
+        // Add bounce animation keyframes
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes bounce {
+                0%, 20%, 50%, 80%, 100% {
+                    transform: translateY(0);
+                }
+                40% {
+                    transform: translateY(-20px);
+                }
+                60% {
+                    transform: translateY(-10px);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+        
         // Start the presentation sequence
         this.startPresentationSequence();
         
@@ -352,7 +369,7 @@ export class Viewer {
             const zoomProgress = this.scrollProgress / this.zoomSteps;
             
             // Calculate camera position
-            const startPos = { x: 1623, y: 1950, z: 1492 };
+            const startPos = { x: 28910, y: 74489, z: -6947 };
             const endPos = { x: 1209, y: 1367, z: 1137 };
             
             const currentPos = {
@@ -362,7 +379,7 @@ export class Viewer {
             };
 
             // Calculate look-at point
-            const startLookAt = { x: 730, y: 691, z: 725 };
+            const startLookAt = { x: 573.58, y: 450.37, z: 418.63 };
             const endLookAt = { x: 622, y: 546, z: 652 };
             
             const currentLookAt = {
@@ -466,7 +483,62 @@ export class Viewer {
                     width: 100%;
                 `;
             } else {
-                infoElement.innerHTML = currentMessage.text;
+                // Create container for message and progress elements
+                const container = document.createElement('div');
+                container.style.cssText = `
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 20px;
+                `;
+
+                // Add message
+                const messageDiv = document.createElement('div');
+                messageDiv.textContent = currentMessage.text;
+                container.appendChild(messageDiv);
+
+                // Add progress bar container
+                const progressContainer = document.createElement('div');
+                progressContainer.style.cssText = `
+                    width: 200px;
+                    height: 2px;
+                    background: rgba(255, 255, 255, 0.2);
+                    position: relative;
+                `;
+
+                // Add progress bar
+                const progressBar = document.createElement('div');
+                progressBar.style.cssText = `
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    height: 100%;
+                    background: white;
+                    transition: width 0.1s ease-out;
+                `;
+
+                // Calculate progress
+                const messageProgress = (this.scrollProgress - currentMessage.startScroll) / 
+                    (currentMessage.endScroll - currentMessage.startScroll);
+                progressBar.style.width = `${messageProgress * 100}%`;
+
+                progressContainer.appendChild(progressBar);
+                container.appendChild(progressContainer);
+
+                // Add down arrow only on first message
+                if (this.scrollProgress === 0) {
+                    const arrow = document.createElement('div');
+                    arrow.innerHTML = '↓';
+                    arrow.style.cssText = `
+                        font-size: 24px;
+                        color: white;
+                        animation: bounce 2s infinite;
+                    `;
+                    container.appendChild(arrow);
+                }
+
+                infoElement.innerHTML = '';
+                infoElement.appendChild(container);
                 infoElement.style.cssText = '';
             }
         }
