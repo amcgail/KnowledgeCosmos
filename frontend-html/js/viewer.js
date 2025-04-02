@@ -301,6 +301,8 @@ export class Viewer {
                 let pcs = this.viewer.scene.pointclouds;
                 if (pcs[pcs.length - 1].visibleNodes.length > 0 || loadCheckCount >= maxLoadChecks) {
                     clearInterval(checkLoaded);
+                    // Show message container after loading is complete
+                    document.querySelector('.message-container').classList.add('visible');
                     callback(pointcloud);
                 } else {
                     loadCheckCount++;
@@ -351,6 +353,12 @@ export class Viewer {
     handleScroll(event) {
         event.preventDefault();
         
+        // Show progress bar when scrolling starts
+        const progressContainer = document.querySelector('.progress-container');
+        if (progressContainer) {
+            progressContainer.classList.add('visible');
+        }
+        
         if (event.deltaY > 0) {
             this.scrollProgress = Math.min(this.maxScroll, this.scrollProgress + 1);
         } else {
@@ -365,23 +373,28 @@ export class Viewer {
         const progress = this.scrollProgress / this.maxScroll;
         
         if (this.scrollProgress <= this.zoomSteps) {
-            // Zoom phase
-            const zoomProgress = this.scrollProgress / this.zoomSteps;
+            // Zoom phase with logarithmic scaling
+            const linearProgress = this.scrollProgress / this.zoomSteps;
+            // Apply logarithmic interpolation to the progress
+            // const zoomProgress = Math.log(Math.E * (1 + linearProgress*(Math.E - 1))) - 1;
+            const zoomProgress = 1 - (1-linearProgress)**3;
             
-            // Calculate camera position
+            // Calculate camera position with linear interpolation
             const startPos = { x: 28910, y: 74489, z: -6947 };
             const endPos = { x: 1209, y: 1367, z: 1137 };
             
+            // Linear interpolation with logarithmic progress
             const currentPos = {
                 x: startPos.x + (endPos.x - startPos.x) * zoomProgress,
                 y: startPos.y + (endPos.y - startPos.y) * zoomProgress,
                 z: startPos.z + (endPos.z - startPos.z) * zoomProgress
             };
 
-            // Calculate look-at point
+            // Calculate look-at point with smoother transition
             const startLookAt = { x: 573.58, y: 450.37, z: 418.63 };
             const endLookAt = { x: 622, y: 546, z: 652 };
             
+            // Use smooth easing for look-at point
             const currentLookAt = {
                 x: startLookAt.x + (endLookAt.x - startLookAt.x) * zoomProgress,
                 y: startLookAt.y + (endLookAt.y - startLookAt.y) * zoomProgress,
@@ -396,22 +409,14 @@ export class Viewer {
             const circleProgress = (this.scrollProgress - this.zoomSteps) / this.circleSteps;
             const angle = circleProgress * 2 * Math.PI;
             
-            // Get the final zoom position as starting point
             const a = new THREE.Vector3(1209, 1367, 1137);
-            
-            // Get the center point
             const b = new THREE.Vector3(730, 691, 725);
             
-            // Calculate the vector from center to camera
             const curlit = a.clone().sub(b);
-            
-            // Rotate this vector around the camera's up axis
             curlit.applyAxisAngle(this.viewer.scene.getActiveCamera().up, angle);
             
-            // Calculate the final position
             const result = b.clone().add(curlit);
             
-            // Update camera position and look-at point
             this.viewer.scene.view.position.set(result.x, result.y, result.z);
             this.viewer.scene.view.lookAt(622, 546, 652);
         }
@@ -467,6 +472,9 @@ export class Viewer {
 
     displayCurrentMessage() {
         const infoElement = document.getElementById('prettier_game_info');
+        const messageText = infoElement.querySelector('.message-text');
+        const progressBar = infoElement.querySelector('.progress-bar');
+        const scrollIndicator = infoElement.querySelector('.scroll-indicator');
         
         // Find the current message based on scroll position
         const currentMessage = this.messagePositions.find(msg => 
@@ -475,71 +483,33 @@ export class Viewer {
 
         if (currentMessage) {
             if (currentMessage.text === 'END') {
-                infoElement.innerHTML = "THE KNOWLEDGE COSMOS";
-                infoElement.style.cssText = `
-                    font-size: 80pt;
-                    font-family: cyber;
-                    max-width: 100%;
-                    width: 100%;
-                `;
+                // Update message text instead of replacing innerHTML
+                messageText.textContent = "THE KNOWLEDGE COSMOS";
+                messageText.style.fontSize = '80pt';
+                messageText.style.fontFamily = 'cyber';
+                messageText.style.maxWidth = '100%';
+                messageText.style.width = '100%';
+                
+                // Hide progress bar and scroll indicator
+                if (progressBar) progressBar.style.display = 'none';
+                if (scrollIndicator) scrollIndicator.style.display = 'none';
             } else {
-                // Create container for message and progress elements
-                const container = document.createElement('div');
-                container.style.cssText = `
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 20px;
-                `;
-
-                // Add message
-                const messageDiv = document.createElement('div');
-                messageDiv.textContent = currentMessage.text;
-                container.appendChild(messageDiv);
-
-                // Add progress bar container
-                const progressContainer = document.createElement('div');
-                progressContainer.style.cssText = `
-                    width: 200px;
-                    height: 2px;
-                    background: rgba(255, 255, 255, 0.2);
-                    position: relative;
-                `;
-
-                // Add progress bar
-                const progressBar = document.createElement('div');
-                progressBar.style.cssText = `
-                    position: absolute;
-                    left: 0;
-                    top: 0;
-                    height: 100%;
-                    background: white;
-                    transition: width 0.1s ease-out;
-                `;
-
-                // Calculate progress
+                // Update message text
+                messageText.textContent = currentMessage.text;
+                
+                // Reset message text styles
+                messageText.style.cssText = '';
+                
+                // Show progress bar
+                if (progressBar) progressBar.style.display = 'block';
+                
+                // Calculate and update progress
                 const messageProgress = (this.scrollProgress - currentMessage.startScroll) / 
                     (currentMessage.endScroll - currentMessage.startScroll);
                 progressBar.style.width = `${messageProgress * 100}%`;
-
-                progressContainer.appendChild(progressBar);
-                container.appendChild(progressContainer);
-
-                // Add down arrow only on first message
-                if (this.scrollProgress === 0) {
-                    const arrow = document.createElement('div');
-                    arrow.innerHTML = '↓';
-                    arrow.style.cssText = `
-                        font-size: 24px;
-                        color: white;
-                        animation: bounce 2s infinite;
-                    `;
-                    container.appendChild(arrow);
-                }
-
-                infoElement.innerHTML = '';
-                infoElement.appendChild(container);
-                infoElement.style.cssText = '';
+                
+                // Show/hide scroll indicator based on scroll position
+                scrollIndicator.style.display = this.scrollProgress === 0 ? 'flex' : 'none';
             }
         }
     }
