@@ -2,6 +2,8 @@ import { getColor, hslToRgb, hslToHex } from './utils.js';
 import {STLLoader} from "/libs/three.js/loaders/STLLoader.js";
 import * as THREE from "/libs/three.js/build/three.module.js";
 
+THREE.Cache.enabled = true;
+
 const FIELDS_TO_FORGET = [
     'Petrology',
     'Market economy',
