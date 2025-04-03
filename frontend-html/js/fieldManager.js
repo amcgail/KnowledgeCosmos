@@ -200,10 +200,21 @@ export class FieldManager {
 
                 const c_text = `rgb(${c[0]},${c[1]},${c[2]})`;
                 
+                const $svg = $(`<svg height="25" width="25" style="stroke:${c_text}; stroke-width:2px; fill:${c_text}; cursor: pointer;">
+                    <polygon points="12.5,3 5,20 20,20" class="triangle" style="stroke: black; stroke-width: 1px;" />
+                </svg>`);
+
+                // Add click handler to change color
+                $svg.click(() => {
+                    const newColor = this.getRandomColor();
+                    const newColorText = `rgb(${newColor.rgb[0]},${newColor.rgb[1]},${newColor.rgb[2]})`;
+                    $svg.attr('style', `stroke:${newColorText}; stroke-width:2px; fill:${newColorText}; cursor: pointer;`);
+                    ret.mesh.material.color.setHex(newColor.hex);
+                    this.updateAnnotationColor(ret.name, newColorText);
+                });
+                
                 $item.append(
-                    $(`<svg height="25" width="25" style="stroke:${c_text}; stroke-width:2px; fill:${c_text};">
-                        <polygon points="12.5,3 5,20 20,20" class="triangle" />
-                    </svg>`),
+                    $svg,
                     $(`<span class='lab'>${ret.name}</span>`),
                     $r_link
                 );
@@ -313,10 +324,21 @@ export class FieldManager {
 
                 const c_text = `rgb(${my_color.rgb[0]},${my_color.rgb[1]},${my_color.rgb[2]})`;
                 
+                const $svg = $(`<svg height="25" width="25" style="stroke:${c_text}; stroke-width:2px; fill:${c_text}; cursor: pointer;">
+                    <polygon points="12.5,3 5,20 20,20" class="triangle" style="stroke: black; stroke-width: 1px;" />
+                </svg>`);
+
+                // Add click handler to change color
+                $svg.click(() => {
+                    const newColor = this.getRandomColor();
+                    const newColorText = `rgb(${newColor.rgb[0]},${newColor.rgb[1]},${newColor.rgb[2]})`;
+                    $svg.attr('style', `stroke:${newColorText}; stroke-width:2px; fill:${newColorText}; cursor: pointer;`);
+                    mesh.material.color.setHex(newColor.hex);
+                    this.updateAnnotationColor(fieldName, newColorText);
+                });
+                
                 $item.append(
-                    $(`<svg height="25" width="25" style="stroke:${c_text}; stroke-width:2px; fill:${c_text};">
-                        <polygon points="12.5,3 5,20 20,20" class="triangle" />
-                    </svg>`),
+                    $svg,
                     $(`<span class='lab'>${fieldName}</span>`),
                     $r_link
                 );
@@ -331,7 +353,10 @@ export class FieldManager {
             }
         );
 
-        window.viewer.renderer.domElement.focus();
+        // Safely handle renderer focus
+        if (window.viewer && window.viewer.renderer && window.viewer.renderer.domElement) {
+            window.viewer.renderer.domElement.focus();
+        }
     }
 
     updateAnnotationColor(fieldName, color) {

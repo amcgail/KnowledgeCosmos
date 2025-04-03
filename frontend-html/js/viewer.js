@@ -86,18 +86,21 @@ export class Viewer {
         
         // Track key states for continuous movement
         const keyStates = {
-            ArrowUp: false,
-            ArrowDown: false,
-            ArrowLeft: false,
-            ArrowRight: false,
+            arrowup: false,
+            arrowdown: false,
+            arrowleft: false,
+            arrowright: false,
             w: false,
             s: false,
             a: false,
             d: false
         };
         
+        // Get the render area element
+        const renderArea = document.getElementById("potree_render_area");
+        
         // Handle key down
-        document.addEventListener('keydown', (event) => {
+        renderArea.addEventListener('keydown', (event) => {
             const key = event.key.toLowerCase();
             if (key in keyStates) {
                 keyStates[key] = true;
@@ -106,13 +109,16 @@ export class Viewer {
         });
         
         // Handle key up
-        document.addEventListener('keyup', (event) => {
+        renderArea.addEventListener('keyup', (event) => {
             const key = event.key.toLowerCase();
             if (key in keyStates) {
                 keyStates[key] = false;
                 console.log('Key released:', key);
             }
         });
+
+        // Make the render area focusable
+        renderArea.setAttribute('tabindex', '0');
         
         // Base movement speed and speed parameters
         const baseSpeed = 5;
