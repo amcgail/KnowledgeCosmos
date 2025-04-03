@@ -84,7 +84,17 @@ class CacheWrapper:
         self.memcache = {}
         self.name = self.func.__name__
         
-        module = self.func.__module__
+        import inspect
+        module_file = inspect.getfile(self.func)
+        # Convert file path to module path
+        module = module_file.replace(os.path.sep, '.')
+        # Remove .py extension and any leading path components
+        module = module[:-3]  # Remove .py
+        # Find the first occurrence of 'backend' to get the proper module path
+        backend_idx = module.find('scripts')
+        if backend_idx != -1:
+            module = module[backend_idx:]
+        
         self.module = '.'.join(module.split('.')[1:])
         
         signature = inspect.signature(self.func)

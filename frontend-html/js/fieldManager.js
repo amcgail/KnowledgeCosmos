@@ -148,16 +148,54 @@ export class FieldManager {
             if (subfields.includes(sub)) continue;
             subfields.push(sub);
         }
-        
+
+        // Track which swatches are currently visible
+        // When all are unselected, show all and select all
+        let swatchStates = {};
+        for (const sub of subfields) {
+            swatchStates[sub] = false;
+        }
+
+        const updateVisibility = () => {
+            const scheme = {};
+            const allOff = Object.values(swatchStates).every(v => !v);
+
+            for (let i = 0; i < subfields.length; i++) {
+                const sub = subfields[i];
+                const c = this.subfield_colors[S][sub];
+                const rgb = `${c[0]*256}, ${c[1]*256}, ${c[2]*256}`;
+
+                const visible = allOff || swatchStates[sub];
+
+                scheme[i + 1] = {
+                    visible: visible,
+                    name: sub,
+                    color: c
+                };
+
+                $swatches[i].css('opacity', visible ? '1' : '0.5');
+            }
+
+            window.viewer.viewer.setClassifications(scheme);
+        };
+
+        const $swatches = [];
+
         for (const sub of subfields) {
             const c = this.subfield_colors[S][sub];
             const rgb = `${c[0]*256}, ${c[1]*256}, ${c[2]*256}`;
             
-            $ls.append(
-                $(`<div class='swatch' style='background-color:rgb(${rgb})'>`),
-                $("<div class='label'>").html(sub),
-                $("<br>")
-            );
+            const $swatch = $(`<div class='swatch' style='background-color:rgb(${rgb})'>`);
+            const $label = $("<div class='label'>").html(sub);
+            
+            // Add click handler for toggling visibility
+            $swatch.click(() => {
+                swatchStates[sub] = !swatchStates[sub];
+                updateVisibility();
+            });
+            
+            $ls.append($swatch, $label, $("<br>"));
+            $swatches.push($swatch);
         }
 
         $ls.append(
@@ -165,6 +203,9 @@ export class FieldManager {
             $("<div class='label'>").html('Other'),
             $("<br>")
         );
+
+        
+        updateVisibility();
 
         return $ls;
     }

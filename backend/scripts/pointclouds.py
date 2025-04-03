@@ -136,7 +136,7 @@ def ProduceTopLevelPointCloud():
 DEFAULT_COLOR = (0.2, 0.2, 0.2, 0.5)
 
 @cache
-def ProduceFieldPointClouds():  
+def ProduceFieldPointClouds(debug=False):
     """
     Generate point cloud visualizations for each top-level field.
     Points are colored based on their subfield membership.
@@ -173,9 +173,19 @@ def ProduceFieldPointClouds():
 
     color_options = [[0.5123862745098039, 0.0, 0.6026156862745098, 1.0], [0.13593921568627448, 0.0, 0.6496980392156863, 1.0], [0.0, 0.36603921568627423, 0.8667, 1.0], [0.0, 0.5320431372549019, 0.8667, 1.0], [0.0, 0.613078431372549, 0.8274843137254903, 1.0], [0.0, 0.6601607843137255, 0.6863078431372549, 1.0], [0.0, 0.6667, 0.5856137254901961, 1.0], [0.0, 0.6510058823529411, 0.4078176470588235, 1.0], [0.0, 0.7803823529411762, 0.0, 1.0], [0.2875686274509804, 1.0, 0.0, 1.0], [0.7529078431372549, 0.9934607843137255, 0.0, 1.0], [0.8940843137254902, 0.9463784313725491, 0.0, 1.0], [0.9673039215686274, 0.865343137254902, 0.0, 1.0], [1.0, 0.7568627450980392, 0.0, 1.0], [1.0, 0.615686274509804, 0.0, 1.0], [1.0, 0.27058823529411763, 0.0, 1.0], [0.8222333333333334, 0.0, 0.0, 1.0], [0.8, 0.2980392156862745, 0.2980392156862745, 1.0], [0.8, 0.8, 0.8, 1.0]]
 
-    for field_id in field_names:
+    if debug:
+        limit = 1
+    else:
+        limit = None
+
+    computed_fields = 0
+
+    for field_id in field_names.keys():
         if field_id not in top_level:
             continue
+
+        if limit and computed_fields > limit:
+            break
         
         # Get all papers for this top-level field
         field_papers = field_to_papers[field_id]
@@ -232,6 +242,15 @@ def ProduceFieldPointClouds():
 
         field_orders[field_id] = ordered_subfields
 
+        # Create a mapping of subfields to classification codes
+        # Start from 1 since 0 is often reserved for unclassified points
+        subfield_classifications = {
+            subfield: i + 1 
+            for i, subfield in enumerate(ordered_subfields)
+        }
+
+        subfield_classifications['Other'] = len(ordered_subfields) + 1
+
         # Get valid papers for this field
         valid_field_papers = sorted(set(field_papers).intersection(valid_paper_ids))
 
@@ -274,30 +293,41 @@ def ProduceFieldPointClouds():
         ))
         las.mag_id = paper_ids_int
         
-        def get_paper_color(paper_id):
-            """Get color for a paper based on its subfield membership"""
+        def get_paper_color_and_classification(paper_id):
+            """Get color and classification for a paper based on its subfield membership"""
             paper_subfields = paper_to_fields[paper_id]
             paper_subfields = [x for x in paper_subfields if x in labeled_subfield_set]
             
             if len(paper_subfields):
                 selected_subfield = choice(paper_subfields)
+                color = field_colors[field_id][selected_subfield]
+                classification = subfield_classifications[selected_subfield]
             else:
-                return DEFAULT_COLOR
+                color = DEFAULT_COLOR
+                classification = 0  # Unclassified
                 
-            return field_colors[field_id][selected_subfield]
+            return color, classification
         
-        # Assign colors to points
-        colors = np.array([get_paper_color(paper_id) for paper_id in paper_ids_str])
+        # Assign colors and classifications to points
+        colors_and_classes = [get_paper_color_and_classification(paper_id) for paper_id in paper_ids_str]
+        colors = np.array([x[0] for x in colors_and_classes])
+        classifications = np.array([x[1] for x in colors_and_classes])
         
         # Set RGB colors
         las.red = convert_color_channel(colors[:, 0])
         las.green = convert_color_channel(colors[:, 1]) 
         las.blue = convert_color_channel(colors[:, 2])
         
+        # Set classifications
+        las.classification = classifications
+        
         # Save LAS file
         las.write(output_dir / f"{field_name}.las")
+        
+        computed_fields += 1
 
     return field_colors, field_orders
 
 if __name__ == '__main__':
-    ConvertPotree('D:/3dmap/field_potrees/0TOP.las')
+    #ProduceFieldPointClouds.make(debug=True, force=True)
+    ConvertPotree(DATA_FOLDER / 'potrees' / 'History.las')
