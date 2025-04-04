@@ -168,146 +168,46 @@ def calculate_camera_position(mesh, center, global_center, fov_degrees=60, scale
     return camera_pos.tolist()
 
 @cache
-def GetFieldCenters(use_volume_filter=True):
+def GetFieldCenters():
     """Returns a dictionary mapping field names to their centers and camera positions.
-    Centers are calculated as a weighted average of points, where points with higher
-    uniqueness (less overlap with other fields) have more weight in the average.
-    Points are scaled up by 100x to match the frontend mesh scaling.
-    Fields can be filtered either by:
-    - Volume: fields must not exceed 1/8 of total volume
-    - Extent: fields must not exceed 3/4 of total extent in any dimension
+    Centers are calculated as the center of mass of each mesh's volume.
     Camera positions are calculated to always look inward toward the global center."""
     
     mesh_dir = DATA_FOLDER / 'static' / 'field_meshes'
     field_data = {}
     
     SCALE = 100  # Match the scale used in the frontend
-    GRID_SIZE = 32  # Number of grid cells per dimension
-    NUM_THREADS = 4  # Number of threads for parallel processing
     
-    # Get all points and field mappings
-    points_per_field = FieldNameToPoints()
-    paper_to_fields = PaperToFields()
-    
-    # First pass: calculate the total extent, volume, and global center across all meshes
+    # First pass: calculate the global center across all meshes
     all_vertices = []
     meshes = {}
-    total_volume = 0
     for stl_file in mesh_dir.glob('*.stl'):
         mesh = trimesh.load(stl_file)
         all_vertices.extend(mesh.vertices)
         meshes[stl_file.stem] = mesh
-        total_volume += abs(mesh.volume)  # abs in case of inverted normals
-    
-    # Convert to numpy array for efficient computation
-    all_vertices = np.array(all_vertices)
-    total_min = np.min(all_vertices, axis=0)
-    total_max = np.max(all_vertices, axis=0)
-    total_extent = total_max - total_min
-    max_allowed_extent = 3 * total_extent / 4
-    max_allowed_volume = total_volume / 8  # No more than 1/8 of total volume
     
     # Calculate global center
+    all_vertices = np.array(all_vertices)
     global_center = np.mean(all_vertices, axis=0) * SCALE
     global_center = global_center.tolist()
     
-    print(f'Total volume: {total_volume:.2f}, Max allowed: {max_allowed_volume:.2f}')
-    print(f'Global center: {global_center}')
-    
-    # Build grid-based spatial index for all fields
-    field_grids = {}
-    for field_name, points in points_per_field.items():
-        if field_name in meshes:  # Only process fields that have meshes
-            points_array = np.array(points) * SCALE
-            field_grids[field_name] = {
-                'points': points_array,
-                'grid': np.zeros((GRID_SIZE, GRID_SIZE, GRID_SIZE)),
-                'cell_size': (total_max - total_min) / GRID_SIZE,
-                'min_coords': total_min
-            }
-            
-            # Assign points to grid cells
-            indices = np.floor((points_array - total_min) / field_grids[field_name]['cell_size']).astype(int)
-            indices = np.clip(indices, 0, GRID_SIZE-1)
-            
-            # Count points in each cell
-            for idx in indices:
-                field_grids[field_name]['grid'][idx[0], idx[1], idx[2]] += 1
-    
-    def calculate_point_uniqueness(point, field_name, field_grids):
-        """Calculate uniqueness score for a single point."""
-        # Get grid cell for this point
-        idx = np.floor((point - total_min) / field_grids[field_name]['cell_size']).astype(int)
-        idx = np.clip(idx, 0, GRID_SIZE-1)
-        
-        # Count nearby fields by checking adjacent grid cells
-        nearby_fields = set()
-        for dx in [-1, 0, 1]:
-            for dy in [-1, 0, 1]:
-                for dz in [-1, 0, 1]:
-                    check_idx = idx + np.array([dx, dy, dz])
-                    check_idx = np.clip(check_idx, 0, GRID_SIZE-1)
-                    
-                    # Check if any other field has points in this cell
-                    for other_field, other_grid in field_grids.items():
-                        if other_field != field_name and other_grid['grid'][check_idx[0], check_idx[1], check_idx[2]] > 0:
-                            nearby_fields.add(other_field)
-        
-        return 1.0 / (len(nearby_fields) + 1)
-    
-    def process_point_chunk(chunk, field_name, field_grids):
-        """Process a chunk of points in parallel."""
-        return np.array([calculate_point_uniqueness(point, field_name, field_grids) for point in chunk])
-    
-    # Second pass: calculate centers and camera positions for fields within size limit
+    # Calculate centers for each mesh
     for field_name, mesh in meshes.items():
-        field_min = np.min(mesh.vertices, axis=0)
-        field_max = np.max(mesh.vertices, axis=0)
-        field_extent = field_max - field_min
-        field_volume = abs(mesh.volume)  # abs in case of inverted normals
+        # Get the center of mass of the mesh
+        center = mesh.center_mass * SCALE
+        center = center.tolist()
         
-        print(f'{field_name}: volume={field_volume:.2f}, extent={field_extent}')
+        # Calculate camera position
+        camera_pos = calculate_camera_position(mesh, center, global_center)
         
-        # Check if field is within bounds based on selected method
-        if use_volume_filter:
-            is_valid = field_volume <= max_allowed_volume
-        else:
-            is_valid = np.any(field_extent <= max_allowed_extent)
-            
-        if is_valid and field_name in field_grids:
-            field_points = field_grids[field_name]['points']
-            
-            # Split points into chunks for parallel processing
-            chunk_size = len(field_points) // NUM_THREADS
-            chunks = [field_points[i:i + chunk_size] for i in range(0, len(field_points), chunk_size)]
-            
-            # Calculate uniqueness scores in parallel
-            with ThreadPoolExecutor(max_workers=NUM_THREADS) as executor:
-                calc_func = partial(process_point_chunk, field_name=field_name, field_grids=field_grids)
-                chunk_scores = list(executor.map(calc_func, chunks))
-            
-            # Combine results
-            uniqueness_scores = np.concatenate(chunk_scores)
-            
-            # Normalize uniqueness scores to sum to 1 for weighted average
-            weights = uniqueness_scores / np.sum(uniqueness_scores)
-            
-            # Calculate weighted average center
-            center = np.average(field_points, axis=0, weights=weights).tolist()
-            
-            # Calculate camera position
-            camera_pos = calculate_camera_position(mesh, center, global_center)
-            
-            field_data[field_name] = {
-                'center': center,
-                'camera_position': camera_pos,
-                'global_center': global_center  # Include global center for reference
-            }
-
-    print('Number of fields retained for labels:', len(field_data))
+        field_data[field_name] = {
+            'center': center,
+            'camera_position': camera_pos,
+            'global_center': global_center
+        }
     
     return field_data
 
 if __name__ == '__main__':
-    WriteFieldMeshes.make(force=True)
+    #WriteFieldMeshes.make(force=True)
     GetFieldCenters.make(force=True)
