@@ -5,6 +5,10 @@ This module provides functionality for automatically labeling regions of the 3D 
 based on paper topics using GPT and spatial clustering.
 """
 
+__all__ = [
+    'TopicLabeler'
+]
+
 import psycopg2
 import json
 import numpy as np

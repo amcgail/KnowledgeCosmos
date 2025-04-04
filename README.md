@@ -1,11 +1,11 @@
-# 3D Map Repository
+# Knowledge Cosmos
 
 [![Documentation Status](https://img.shields.io/website?label=docs&url=https://amcgail.github.io/KnowledgeCosmos/)](https://amcgail.github.io/KnowledgeCosmos/)
 [![Demo](https://img.shields.io/website?label=demo&url=https://knowledge-cosmos-3d-map.s3.amazonaws.com/index.html)](https://knowledge-cosmos-3d-map.s3.amazonaws.com/index.html)
 [![Python Version](https://img.shields.io/badge/python-3.7%2B-blue)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Welcome to the 3D Map Repository, a powerful tool for processing and visualizing academic papers in 3D space. You can explore the live demo at [Knowledge Cosmos](https://knowledge-cosmos-3d-map.s3.amazonaws.com/index.html) and read the full documentation at [amcgail.github.io/KnowledgeCosmos](https://amcgail.github.io/KnowledgeCosmos/).
+Welcome to the Knowledge Cosmos repository, a powerful tool for processing and visualizing academic papers in 3D space. You can explore the live demo at [Knowledge Cosmos](https://knowledge-cosmos-3d-map.s3.amazonaws.com/index.html) and read the full documentation at [amcgail.github.io/KnowledgeCosmos](https://amcgail.github.io/KnowledgeCosmos/).
 
 ## Getting Started
 

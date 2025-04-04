@@ -17,7 +17,72 @@ The module handles configuration through environment variables and optional para
     - Optional ``params.py`` configuration
     - Runtime parameter overrides
 
-Caching System
+Caching System Overview
+-------------------
+
+The project includes a powerful caching system implemented through the ``CacheWrapper`` class and ``@cache`` decorator. This system provides persistent caching of function results using pickle-based file storage, with support for memory caching to improve performance.
+
+Features
+~~~~~~~~
+
+* **Persistent Storage**: Results are cached to disk using pickle files
+* **Memory Caching**: In-memory caching to avoid repeated disk reads
+* **Flexible Cache Keys**: MD5 hashing of function arguments
+* **Parameter Control**: Ability to ignore specific parameters from cache keys
+* **Default Value Handling**: Automatic handling of default parameter values
+* **Module-based Organization**: Cache files are organized by module and function name
+
+Usage Examples
+~~~~~~~~~~~
+
+Basic Usage:
+
+.. code-block:: python
+
+   from backend.scripts.common import cache
+
+   @cache
+   def expensive_computation(param1, param2):
+       # Your expensive computation here
+       return result
+
+Ignoring Parameters:
+
+.. code-block:: python
+
+   @cache(ignore=['verbose'])
+   def process_data(data, verbose=False):
+       # The verbose parameter won't affect the cache key
+       return result
+
+Complete Example:
+
+.. code-block:: python
+
+   @cache(ignore=['debug'])
+   def process_point_cloud(file_path, resolution=0.1, debug=False):
+       """
+       Process a point cloud file with caching.
+       
+       Args:
+           file_path: Path to the point cloud file
+           resolution: Processing resolution (affects cache key)
+           debug: Debug flag (ignored in cache key)
+       """
+       # Your processing code here
+       return processed_data
+
+   # Normal usage
+   result1 = process_point_cloud("data.pcd", resolution=0.1)
+
+   # Force recalculation
+   result2 = process_point_cloud.make(
+       force=True,
+       file_path="data.pcd",
+       resolution=0.1
+   )
+
+API Reference
 -----------
 
 .. py:class:: CacheWrapper
@@ -71,29 +136,20 @@ Cache Decorator
    :param ignore: Parameters to ignore in cache key generation
    :returns: Cached function wrapper
 
-   Example usage:
+Implementation Details
+-------------------
 
-   .. code-block:: python
+Cache File Structure
+~~~~~~~~~~~~~~~~~~
 
-      @cache(ignore=['debug'])
-      def expensive_function(param1, debug=False):
-          # Function implementation
-          pass
-
-Directory Structure
-----------------
-
-The module sets up the following directory structure::
+Cache files are stored in the following structure::
 
     DATA_FOLDER/
     ├── cache/           # Cache storage
     │   └── scripts/     # Module-specific caches
     └── static/          # Static file storage
 
-Cache File Format
---------------
-
-Cache files are stored in two parts:
+Each cache entry consists of:
 
 1. **Metadata File** (``.yaml``)
    - Function signature
@@ -105,9 +161,6 @@ Cache files are stored in two parts:
    - Pickled function result
    - Compressed when possible
    - Memory-mapped for large data
-
-Implementation Details
--------------------
 
 Memory Management
 ~~~~~~~~~~~~~~
@@ -132,28 +185,15 @@ The caching system includes several memory optimization features:
     - Version-aware keys
     - Collision handling
 
-Performance Features
-----------------
+Performance Considerations
+-----------------------
 
-Several optimizations are implemented:
+When using this module, consider:
 
-* **Load Time**
-    - Memory caching
-    - Quick hash lookups
-    - Parallel loading
-    - Lazy evaluation
-
-* **Storage**
-    - Compressed pickle files
-    - Metadata separation
-    - Directory organization
-    - Cleanup utilities
-
-* **Memory Usage**
-    - Streaming operations
-    - Reference counting
-    - Garbage collection
-    - Cache eviction
+* Cache file size growth
+* Memory cache limits
+* Disk space requirements
+* Cache invalidation timing
 
 Dependencies
 ----------
@@ -165,41 +205,21 @@ Required Python packages:
 * ``hashlib``: MD5 hashing
 * ``dotenv``: Environment configuration
 
-Example Usage
------------
+Best Practices
+-------------
 
-Basic usage of the caching system:
+1. **Use Keyword Arguments**: The caching system only supports keyword arguments
+2. **Ignore Volatile Parameters**: Use the ``ignore`` parameter to exclude parameters that shouldn't affect caching
+3. **Memory Management**: The system includes memory caching, but be mindful of memory usage with large results
+4. **Cache Invalidation**: Use the ``force=True`` parameter when you need fresh results
 
-.. code-block:: python
+Environment Setup
+---------------
 
-   from backend.scripts.common import cache
+Make sure your ``.env`` file includes:
 
-   @cache
-   def expensive_calculation(param1, param2):
-       # Expensive computation here
-       return result
+::
 
-   @cache(ignore=['debug'])
-   def debug_function(param, debug=False):
-       # Function with debug parameter
-       return result
+   DATA_FOLDER=/path/to/your/data/folder
 
-Error Handling
-------------
-
-The module handles several error cases:
-
-* Missing cache files
-* Corrupted cache data
-* Version mismatches
-* Permission issues
-
-Performance Considerations
------------------------
-
-When using this module, consider:
-
-* Cache file size growth
-* Memory cache limits
-* Disk space requirements
-* Cache invalidation timing 
+This folder will be used to store all cache files. 

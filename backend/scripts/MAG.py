@@ -1,5 +1,10 @@
 from .common import *
 
+__all__ = [
+    'GetYears',
+    'GetIds'
+]
+
 @cache
 def GetYears():
     import gzip

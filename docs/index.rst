@@ -18,10 +18,9 @@ A powerful toolkit for processing and visualizing 3D map data, with a focus on a
    data_sources
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Technical Documentation
 
-   caching
    api/modules
 
 Core Features

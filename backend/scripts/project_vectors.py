@@ -1,5 +1,12 @@
 from .common import *
 
+__all__ = [
+    'GetUmapEmbedding',
+    'FitUmapToSample',
+    'SampleForUmap',
+    'GetUmapEmbeddingSingleFile'
+]
+
 # ======= BEGIN HELPERS ========
 
 VECTOR_FOLDER = DATA_FOLDER / 'vectors'

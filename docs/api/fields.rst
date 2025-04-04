@@ -3,8 +3,10 @@ Academic Field Management
 
 The ``fields`` module provides functionality for managing academic field hierarchies and their relationships with papers.
 
-Core Functions
-------------
+Module Interface
+--------------
+
+.. py:module:: backend.scripts.fields
 
 .. py:function:: GetFieldNames(minimum_papers=1000, maximum_level=2, force_include=None)
 
@@ -15,7 +17,6 @@ Core Functions
    :param force_include: List of field names to include regardless of other criteria
    :returns: Dictionary mapping field IDs to field names
    :rtype: dict
-   :cached: True
 
 .. py:function:: GetTopLevel()
 
@@ -31,10 +32,6 @@ Core Functions
    :param MIN_PAPERS: Minimum number of papers required for a field to be included
    :returns: Dictionary mapping parent field IDs to lists of child field IDs
    :rtype: dict
-   :cached: True
-
-Paper-Field Mapping
-----------------
 
 .. py:function:: PointIterator(LIMIT=None)
 
@@ -43,7 +40,6 @@ Paper-Field Mapping
    :param LIMIT: Optional limit on number of papers to process (for testing)
    :returns: Tuple of (points_per_subfield, subfield_per_paper) mappings
    :rtype: tuple
-   :cached: True
 
 .. py:function:: FieldNameToPoints(LIMIT=None)
 

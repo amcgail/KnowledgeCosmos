@@ -70,8 +70,28 @@ autodoc_default_options = {
     'special-members': '__init__',
     'undoc-members': True,
     'exclude-members': '__weakref__',
-    'imported-members': True,  # Document imported members
+    'imported-members': False,
 }
+
+# Type hints settings
+autodoc_typehints = 'description'
+autodoc_typehints_format = 'short'
+
+# Mock imports to prevent documenting external types
+autodoc_mock_imports = [
+    'numpy',
+    'scipy',
+    'pandas',
+    'matplotlib',
+    'laspy',
+    'umap',
+    'pathlib',
+    'trimesh',
+    'alphashape',
+    'openai',
+    'psycopg2',
+    'tqdm'
+]
 
 # Add any paths that contain templates here, relative to this directory
 templates_path = ['_templates']
