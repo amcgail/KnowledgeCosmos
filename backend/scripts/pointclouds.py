@@ -61,6 +61,7 @@ def ProduceTopLevelPointCloud():
     # Get embedding and valid paper IDs
     embedding = project_vectors.GetUmapEmbedding()
     valid_paper_ids = MAG.GetIds()
+    paper_years = MAG.GetYears()
 
     # Setup output directory
     output_dir = DATA_FOLDER / 'potrees'
@@ -108,6 +109,10 @@ def ProduceTopLevelPointCloud():
     ))
     las.mag_id = paper_ids_int
     
+    # Store year in point source ID field for filtering
+    las.point_source_id = [paper_years.get(pid, 0) for pid in paper_ids_int]
+    print('year range', min(las.point_source_id), max(las.point_source_id))
+    
     def normalize_to_255(x):
         """Normalize values to 0-255 range"""
         return 255 * (x - x.min())/ (x.max()-x.min())
@@ -135,7 +140,7 @@ def ProduceTopLevelPointCloud():
 
 DEFAULT_COLOR = (0.2, 0.2, 0.2, 0.5)
 
-@cache
+@cache(ignore=['debug'])
 def ProduceFieldPointClouds(debug=False):
     """
     Generate point cloud visualizations for each top-level field.
@@ -147,7 +152,7 @@ def ProduceFieldPointClouds(debug=False):
 
     from matplotlib import cm
     import laspy
-
+    import gzip
     from . import fields, project_vectors, MAG
 
     # Get field information
@@ -162,6 +167,9 @@ def ProduceFieldPointClouds(debug=False):
     # Get embedding and valid paper IDs
     embedding = project_vectors.GetUmapEmbedding()
     valid_paper_ids = MAG.GetIds()
+
+    # Get the years papers were published
+    paper_years = MAG.GetYears()
 
     # Setup output directory
     output_dir = DATA_FOLDER / 'potrees'
@@ -293,6 +301,12 @@ def ProduceFieldPointClouds(debug=False):
         ))
         las.mag_id = paper_ids_int
         
+        # Store year in point source ID field for filtering
+        las.point_source_id = [paper_years.get(pid, 0) for pid in paper_ids_int]
+        print('year range', min(las.point_source_id), max(las.point_source_id))
+
+        paper_ids_str = [str(pid) for pid in paper_ids_int]
+        
         def get_paper_color_and_classification(paper_id):
             """Get color and classification for a paper based on its subfield membership"""
             paper_subfields = paper_to_fields[paper_id]
@@ -329,5 +343,8 @@ def ProduceFieldPointClouds(debug=False):
     return field_colors, field_orders
 
 if __name__ == '__main__':
-    #ProduceFieldPointClouds.make(debug=True, force=True)
-    ConvertPotree(DATA_FOLDER / 'potrees' / 'History.las')
+    ProduceFieldPointClouds.make(force=True)
+    ConvertPotreeAll.make(force=True)
+    
+    #ProduceTopLevelPointCloud.make(force=True)
+    #ConvertPotree(DATA_FOLDER / 'potrees' / 'full.las')
