@@ -58,15 +58,17 @@ You need an http server which supports range requests, e.g. `python -m RangeHTTP
 
 The SPECTER vectors used in this project can be downloaded (thanks David Acuna et al.) [here](https://zenodo.org/records/4917086), by downloading the `paper_specter_{i}.pkl` files. [Here](https://arxiv.org/pdf/2004.07180) is how the model was trained.
 
-This download can [hypothetically](https://developers.zenodo.org/) be accomplished using the API, or via [this](https://github.com/dvolgyes/zenodo_get) Python package, but I prefer using a tool like JDownloader, and managing the download process myself. In total, the vectors take up roughly 54GB on disk.
+This download can [hypothetically](https://developers.zenodo.org/) be accomplished using the API, or via [this](https://github.com/dvolgyes/zenodo_get) Python package, but I prefer using a tool like JDownloader, and managing the download process myself. In total, the vectors take up roughly 54GB on disk and includes 17M papers.
 
 The model for generating these vectors is [open source](https://github.com/allenai/specter) [public and available](https://huggingface.co/allenai/specter), so these could be easily generated again, or on any new paper. The model has [apparently](https://allenai.org/blog/specter2-adapting-scientific-document-embeddings-to-multiple-fields-and-task-formats-c95686c06567) been extended as recently as November 2023.
 
 # microsoft academic graph (MAG) data
 
-The CSV files (for `FieldsOfStudy`) can be accessed [here](https://zenodo.org/records/2628216), and were last updated in 2019. Of course, having more up-to-date data would be nice, but the vectors were computed in 2021, so these would need to be recomputed.
+The CSV files (for `FieldsOfStudy.txt.gz` 18.4MB and `Papers.txt.gz` 22.8GB) can be accessed [here](https://zenodo.org/records/2628216), and were last updated in 2019, including 238M papers. 
 
-[Here](https://zenodo.org/records/4617285) is the 2021 dump of the RDF of MAG (for `16.PaperFieldsOfStudy.nt.bz2`)
+Of course, having more up-to-date data would be nice, but the vectors were computed in September 2020, so these would need to be recomputed.
+
+[Here](https://zenodo.org/records/4617285) is the 2021 dump of the RDF of MAG (for `16.PaperFieldsOfStudy.nt.bz2` 7.3 GB)
 
 # Semantic Scholar data
 
