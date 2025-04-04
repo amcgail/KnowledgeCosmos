@@ -1,7 +1,7 @@
 Frontend Documentation
 =====================
 
-The frontend of the 3D Map Repository provides an interactive visualization interface for exploring academic papers in 3D space. This document covers the architecture, components, and features of the frontend system.
+The frontend of the Knowledge Cosmos provides an interactive visualization interface for exploring academic papers in 3D space. This document covers the architecture, components, and features of the frontend system.
 
 Core Components
 -------------

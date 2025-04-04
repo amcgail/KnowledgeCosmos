@@ -76,11 +76,3 @@ Mesh Generation
    :members:
    :undoc-members:
    :show-inheritance:
-
-Label Generation
---------------
-
-.. automodule:: backend.scripts.labels
-   :members:
-   :undoc-members:
-   :show-inheritance: 

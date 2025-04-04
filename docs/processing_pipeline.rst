@@ -86,16 +86,6 @@ The :mod:`backend.scripts.mesh` module creates 3D meshes:
 * :func:`WriteFieldMeshes`: Generates STL meshes for field boundaries
 * Uses alpha shapes to create convex hulls around field clusters
 
-Label Generation
-~~~~~~~~~~~~~
-
-The :mod:`backend.scripts.labels` module:
-
-* Divides the space into voxels
-* Analyzes papers in each voxel
-* Uses GPT to generate topic labels
-* Recursively subdivides diverse regions
-
 Caching System
 ------------
 
