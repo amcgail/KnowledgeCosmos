@@ -1,0 +1,112 @@
+/* Compact Year Filter Controls */
+.year-filter-controls {
+    position: relative;
+    top: 60px;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 8px 20px;
+    z-index: 3;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    margin: auto;
+    width: 500px;
+}
+
+.year-filter-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.year-label {
+    color: #fff;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.year-range-slider {
+    flex: 1;
+    min-width: 200px;
+    margin: 0 10px;
+}
+
+.year-range-display {
+    color: #fff;
+    font-size: 14px;
+    min-width: 100px;
+    text-align: center;
+}
+
+/* jQuery UI Slider Customization */
+.ui-slider {
+    background: #444;
+    height: 4px;
+    border-radius: 2px;
+}
+
+.ui-slider .ui-slider-range {
+    background: #4CAF50;
+    height: 4px;
+}
+
+.ui-slider .ui-slider-handle {
+    background: white;
+    border: none;
+    border-radius: 50%;
+    width: 12px;
+    height: 12px;
+    top: -4px;
+    cursor: pointer;
+}
+
+.ui-slider .ui-slider-handle:focus {
+    outline: none;
+}
+
+.ui-slider-horizontal .ui-slider-handle {
+    margin-left: -6px;
+}
+
+/* Play Button */
+.play-button {
+    background: #4CAF50;
+    border: none;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+}
+
+.play-button:hover {
+    background: #45a049;
+}
+
+.play-button.playing {
+    background: #f44336;
+}
+
+.play-button.playing:hover {
+    background: #da190b;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+}
+
+.close-button:hover {
+    color: #4CAF50;
+} 

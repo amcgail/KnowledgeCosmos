@@ -7,6 +7,7 @@ export class Controls {
         this.camera = viewer.scene.getActiveCamera();
         this.animation = null;
         this.multiplier = 1;
+        this.yearFilter = new YearFilter(viewer);
         this.setupEventListeners();
         this.setupRectangleSelection();
     }
@@ -24,6 +25,11 @@ export class Controls {
 
         // Dynamic speed adjustment
         setInterval(() => this.updateSpeed(), 100);
+
+        // Year filter toggle
+        $("#year-filter-toggle").click(() => {
+            this.yearFilter.togglePanel();
+        });
     }
 
     updateSpeed() {
@@ -294,4 +300,134 @@ export class Controls {
             .start();
     }
 
-} 
+}
+
+// Year Filter Control
+class YearFilter {
+    constructor(viewer) {
+        this.viewer = viewer;
+        this.pointcloud = null;
+        this.yearRange = null;
+        this.animationInterval = null;
+        this.animationSpeed = 10;
+        this.isPlaying = false;
+        this.minYear = 1900;
+        this.maxYear = 2017;
+
+        this.sliderLow = 1970;
+        this.sliderHigh = 1980;
+
+        this.initializeControls();
+    }
+
+    initializeControls() {
+        // Initialize jQuery UI slider
+        this.yearRange = $('#year-range-slider').slider({
+            range: true,
+            min: this.minYear,
+            max: this.maxYear,
+            values: [this.sliderLow, this.sliderHigh],
+            slide: (event, ui) => {
+                this.updateYearRange(ui.values[0], ui.values[1]);
+            }
+        });
+
+        // Initialize animation controls
+        this.initializeAnimationControls();
+
+        // Initialize close button
+        $('.close-button').on('click', () => {
+            this.togglePanel();
+        });
+    }
+
+    initializeAnimationControls() {
+        const playButton = $('#year-play');
+
+        playButton.on('click', () => {
+            this.toggleAnimation();
+        });
+    }
+
+    updateYearRange(min, max) {
+        this.sliderLow = min;
+        this.sliderHigh = max;
+        
+        // Update display values
+        $('.year-range-display').text(`${min}-${max}`);
+        
+        // Apply filter
+        this.applyFilter();
+    }
+
+    applyFilter() {
+        this.viewer.setFilterPointSourceIDRange(this.sliderLow, this.sliderHigh);
+    }
+
+    startAnimation() {
+        if (this.animationInterval) return;
+
+        this.isPlaying = true;
+        $('#year-play').addClass('playing').find('i').attr('class', 'fas fa-pause');
+
+        const step = () => {
+            const currentRange = this.sliderHigh - this.sliderLow;
+            if (this.sliderHigh + 1 > this.maxYear) {
+                this.sliderLow = this.minYear;
+                this.sliderHigh = this.sliderLow + currentRange;
+            } else {
+                this.sliderLow = Math.max(this.sliderLow + 1);
+                this.sliderHigh = this.sliderLow + currentRange;
+            }
+
+            this.yearRange.slider('values', [this.sliderLow, this.sliderHigh]);
+            this.updateYearRange(this.sliderLow, this.sliderHigh);
+
+            this.animationInterval = setTimeout(step, 1000 / (this.animationSpeed * 2));
+        };
+
+        step();
+    }
+
+    stopAnimation() {
+        if (this.animationInterval) {
+            clearTimeout(this.animationInterval);
+            this.animationInterval = null;
+        }
+        this.isPlaying = false;
+        $('#year-play').removeClass('playing').find('i').attr('class', 'fas fa-play');
+    }
+
+    toggleAnimation() {
+        if (this.isPlaying) {
+            this.stopAnimation();
+        } else {
+            this.startAnimation();
+        }
+    }
+
+    setPointcloud(pointcloud) {
+        this.pointcloud = pointcloud;
+        console.log('Pointcloud set:', pointcloud);
+    }
+
+    togglePanel() {
+        const controls = $("#year-filter-controls");
+        const toggle = $("#year-filter-toggle");
+        
+        if (controls.is(":visible")) {
+            controls.fadeOut(300);
+            toggle.removeClass("selected");
+            this.clearFilter();
+        } else {
+            controls.fadeIn(300);
+            toggle.addClass("selected");
+            this.applyFilter();
+        }
+    }
+
+    clearFilter() {
+        this.stopAnimation();
+        this.viewer.setFilterPointSourceIDRange(0, 2050);
+    }
+}
