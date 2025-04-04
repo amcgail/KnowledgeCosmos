@@ -335,6 +335,15 @@ export class FieldManager {
         this.selectedFieldName = fieldName;
         this.updateAnnotationColor(fieldName, `rgb(${my_color.rgb[0]},${my_color.rgb[1]},${my_color.rgb[2]})`);
 
+        // Set z-index to highest for the selected annotation
+        window.viewer.viewer.scene.annotations.children.forEach(annotation => {
+            if (annotation.title === fieldName) {
+                annotation.domElement.addClass('selected-annotation');
+            } else {
+                annotation.domElement.removeClass('selected-annotation');
+            }
+        });
+
         const material = new THREE.MeshBasicMaterial({
             color: my_color.hex,
             wireframe: true,
@@ -436,6 +445,20 @@ export class FieldManager {
         const cameraDirection = new THREE.Vector3();
         camera.getWorldDirection(cameraDirection);
         
+        // Get the currently filtered field (if any)
+        let filteredField = null;
+        for (const [topField, subfields] of Object.entries(this.subfields)) {
+            // Check if any swatch in this field's expansion is active
+            const $expansion = $(`.legend_expansion:has(.legend_item:contains('${topField}'))`);
+            if ($expansion.length) {
+                const $activeSwatch = $expansion.find('.swatch[style*="opacity: 1"]');
+                if ($activeSwatch.length) {
+                    filteredField = topField;
+                    break;
+                }
+            }
+        }
+        
         // Calculate distances for all annotations
         const annotationsWithDistances = [];
         window.viewer.viewer.scene.annotations.children.forEach(annotation => {
@@ -448,7 +471,19 @@ export class FieldManager {
             const dot = toAnnotation.dot(cameraDirection);
             
             // Use a large distance for points behind the camera
-            const distance = dot < 0 ? 100000 : cameraPosition.distanceTo(annotation.position);
+            let distance = dot < 0 ? 100000 : cameraPosition.distanceTo(annotation.position);
+            
+            // If there's a filtered field, only show its subfields
+            if (filteredField) {
+                // If this is a subfield of the filtered field, keep its distance
+                if (this.subfields[filteredField]?.includes(annotation.title)) {
+                    // Keep the original distance
+                } else {
+                    // Push everything else far away
+                    distance = Infinity;
+                }
+            }
+            
             annotationsWithDistances.push({ annotation, distance });
         });
         
@@ -540,7 +575,8 @@ export class FieldManager {
                     'opacity': '1.0',
                     'display': 'block',
                     'pointer-events': 'auto',
-                    'transform': `translate(-50%, -30px) scale(${scale})`
+                    'transform': `translate(-50%, -30px) scale(${scale})`,
+                    'z-index': '9999'
                 });
             } else if (distance > maxDistance) {
                 // Hide non-central fields at regular max distance
