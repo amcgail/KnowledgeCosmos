@@ -123,7 +123,7 @@ export class Viewer {
         
         // Base movement speed and speed parameters
         const baseSpeed = 0.1;
-        const maxSpeed = 50.0;
+        const maxSpeed = 20.0;
         const speedExponent = 2;
         
         // Continuous movement update
@@ -140,10 +140,10 @@ export class Viewer {
             forward.applyQuaternion(camera.quaternion);
             right.applyQuaternion(camera.quaternion);
             
-            // Calculate speed with logarithmic increase
+            // Calculate speed with quadratic increase
             const speedMultiplier = this.recentDistance === 0 
                 ? baseSpeed 
-                : Math.min(maxSpeed, baseSpeed * Math.pow(2, this.recentDistance / 10));
+                : Math.min(maxSpeed, baseSpeed * (1 + Math.pow(this.recentDistance / 10, 2)));
 
             console.log('Distance:', this.recentDistance, 'Speed:', speedMultiplier);
             
