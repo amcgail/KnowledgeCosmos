@@ -104,7 +104,6 @@ export class Viewer {
             const key = event.key.toLowerCase();
             if (key in keyStates) {
                 keyStates[key] = true;
-                console.log('Key pressed:', key);
             }
         });
         
@@ -113,7 +112,6 @@ export class Viewer {
             const key = event.key.toLowerCase();
             if (key in keyStates) {
                 keyStates[key] = false;
-                console.log('Key released:', key);
             }
         });
 
@@ -145,8 +143,6 @@ export class Viewer {
             
             // Calculate speed with exponential increase
             const speedMultiplier = Math.min(maxSpeed, baseSpeed * Math.pow(distance / 400, speedExponent));
-
-            console.log(speedMultiplier);
             
             // Handle both arrow keys and WASD
             if (keyStates['arrowup'] || keyStates['w']) moveVector.add(forward.multiplyScalar(speedMultiplier));
@@ -220,7 +216,6 @@ export class Viewer {
                     this.sliceVolume.position.set(0, 0, 0);
                     this.sliceVolume.clip = true;
                     this.sliceVolume.visible = false;
-                    console.log(this.sliceVolume);
                     this.viewer.scene.addVolume(this.sliceVolume);
                 }
                 
@@ -288,8 +283,6 @@ export class Viewer {
         } else {
             position = (value / 100) * 1000 - 500;
         }
-
-        console.log(position);
 
         switch (activeOrientation) {
             case 'axial':
@@ -635,7 +628,6 @@ export class Viewer {
             frames++;
             if (currentTime - lastTime >= 1000) {
                 fps = Math.round((frames * 1000) / (currentTime - lastTime));
-                console.log(`FPS: ${fps}`);
                 frames = 0;
                 lastTime = currentTime;
             }
