@@ -7,14 +7,14 @@
     z-index: 3;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     margin: auto;
-    width: 500px;
+    width: 360px;
 }
 
 .year-filter-wrapper {
     display: flex;
     align-items: center;
     gap: 15px;
-    max-width: 600px;
+    max-width: 500px;
     margin: 0 auto;
 }
 
@@ -27,13 +27,11 @@
 .year-range-slider {
     flex: 1;
     min-width: 200px;
-    margin: 0 10px;
 }
 
 .year-range-display {
     color: #fff;
     font-size: 14px;
-    min-width: 100px;
     text-align: center;
 }
 

@@ -353,14 +353,14 @@ class YearFilter {
         this.sliderLow = min;
         this.sliderHigh = max;
         
-        // Update display values
-        $('.year-range-display').text(`${min}-${max}`);
-        
         // Apply filter
         this.applyFilter();
     }
 
     applyFilter() {
+        // Update display values
+        $('.year-range-display').text(`${this.sliderLow}-${this.sliderHigh}`);
+
         this.viewer.setFilterPointSourceIDRange(this.sliderLow, this.sliderHigh);
     }
 
