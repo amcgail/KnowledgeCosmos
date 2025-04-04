@@ -7,6 +7,7 @@ This repository contains tools and utilities for processing and visualizing 3D m
    :maxdepth: 2
    :caption: Contents:
 
+   frontend
    caching
    processing_pipeline
    api/modules
