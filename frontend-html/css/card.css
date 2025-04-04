@@ -1,5 +1,5 @@
-/* Paper Card */
-.card {
+/* Paper Card - Base styles for cards and paper details */
+.card, .paper-details {
     position: fixed;
     left: 0;
     top: 0;
@@ -12,25 +12,28 @@
     z-index: 1000;
 }
 
-.card .title {
+/* Common title styles */
+.card .title, .paper-details .paper-title {
     font-family: cyber;
     font-size: 18px;
     margin-bottom: 15px;
     line-height: 1.4;
 }
 
-.card .meta {
+/* Common meta styles */
+.card .meta, .paper-details .paper-meta {
     font-size: 14px;
     color: #666;
     margin-bottom: 15px;
     line-height: 1.6;
 }
 
-.card .tags {
+/* Common tag styles */
+.card .tags, .paper-details .paper-tags {
     margin-bottom: 15px;
 }
 
-.card .tag {
+.card .tag, .paper-details .paper-tag {
     display: inline-block;
     background: #f0f0f0;
     padding: 4px 8px;
@@ -39,10 +42,40 @@
     font-size: 12px;
 }
 
-.card .content {
+/* Common content styles */
+.card .content, .paper-details .paper-content {
     font-size: 14px;
     line-height: 1.6;
     color: #333;
+}
+
+/* Paper-details specific styles */
+.paper-details .paper-meta {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+}
+
+.paper-details .meta-content {
+    flex: 1;
+}
+
+.paper-details .bookmark-btn {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    color: #666;
+    transition: color 0.2s ease;
+    font-size: 1.2em;
+}
+
+.paper-details .bookmark-btn:hover {
+    color: #333;
+}
+
+.paper-details .bookmark-btn.active {
+    color: #4CAF50;
 }
 
 /* Legend */
@@ -150,78 +183,6 @@
     text-decoration: underline;
 }
 
-/* Paper Details Panel */
-.paper-details {
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 400px;
-    height: 100vh;
-    background: white;
-    padding: 20px;
-    box-shadow: -2px 0 5px rgba(0,0,0,0.1);
-    overflow-y: auto;
-    z-index: 1000;
-}
-
-.paper-details .paper-title {
-    font-family: cyber;
-    font-size: 18px;
-    margin-bottom: 15px;
-    line-height: 1.4;
-}
-
-.paper-details .paper-meta {
-    display: flex;
-    align-items: flex-start;
-    gap: 15px;
-    font-size: 14px;
-    color: #666;
-    margin-bottom: 15px;
-    line-height: 1.6;
-}
-
-.paper-details .meta-content {
-    flex: 1;
-}
-
-.paper-details .bookmark-btn {
-    background: none;
-    border: none;
-    padding: 8px;
-    cursor: pointer;
-    color: #666;
-    transition: color 0.2s ease;
-    font-size: 1.2em;
-}
-
-.paper-details .bookmark-btn:hover {
-    color: #333;
-}
-
-.paper-details .bookmark-btn.active {
-    color: #4CAF50;
-}
-
-.paper-details .paper-tags {
-    margin-bottom: 15px;
-}
-
-.paper-details .paper-tag {
-    display: inline-block;
-    background: #f0f0f0;
-    padding: 4px 8px;
-    border-radius: 4px;
-    margin: 2px;
-    font-size: 12px;
-}
-
-.paper-details .paper-content {
-    font-size: 14px;
-    line-height: 1.6;
-    color: #333;
-}
-
 /* Sidebar */
 #sidebar {
     position: fixed;
@@ -283,83 +244,6 @@
     display: block;
 }
 
-/* Update existing panel styles */
-#legend, #constellation, #history, #saved-tab {
-    height: 100%;
-    overflow-y: auto;
-}
-
-#constellation p {
-    margin: 0 0 20px;
-    font-size: 10pt;
-}
-
-#constellation input {
-    width: 100%;
-    padding: 8px;
-    margin-bottom: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-}
-
-#constellation button {
-    width: 100%;
-    padding: 8px;
-    background: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-bottom: 15px;
-}
-
-#constellation button:hover {
-    background: #45a049;
-}
-
-/* History and Saved Items */
-.history-item, .saved-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px;
-    border-bottom: 1px solid #eee;
-    cursor: pointer;
-    transition: background 0.2s ease;
-}
-
-.history-item:hover, .saved-item:hover {
-    background: #f8f8f8;
-}
-
-.history-content, .saved-content {
-    flex: 1;
-}
-
-.history-title, .saved-title {
-    font-weight: 500;
-    margin-bottom: 4px;
-}
-
-.history-meta, .saved-meta {
-    font-size: 12px;
-    color: #666;
-}
-
-.history-actions, .saved-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.delete-btn {
-    cursor: pointer;
-    opacity: 0.6;
-    transition: opacity 0.2s ease;
-}
-
-.delete-btn:hover {
-    opacity: 1;
-}
 /* Right Sidebar */
 .right-sidebar {
     position: fixed;

@@ -275,74 +275,69 @@ body {
     display: none !important;
 }
 
-/* History Panel Styles */
-#history_list {
-    margin-top: 15px;
+/* History and Saved Items */
+.history-item, .saved-item {
+    padding: 15px;
+    margin: 10px 0;
+    background: #f8f8f8;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+    position: relative;
 }
 
-.history-item {
-    padding: 10px;
-    margin: 5px 0;
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.history-item:hover, .saved-item:hover {
+    background: #f0f0f0;
 }
 
-.history-item:hover {
-    background: rgba(255, 255, 255, 1);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-.history-title {
+.history-title, .saved-title {
     font-weight: bold;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
+    font-size: 14px;
 }
 
-.history-meta {
-    font-size: 0.9em;
+.history-meta, .saved-meta {
+    font-size: 12px;
     color: #666;
+    margin-bottom: 8px;
 }
 
-.history-content {
-    flex: 1;
-    cursor: pointer;
+.history-content, .saved-content {
+    font-size: 13px;
+    color: #333;
 }
 
-.history-actions {
-    margin-left: 10px;
+.history-actions, .saved-actions {
+    margin-top: 10px;
+    text-align: right;
 }
 
 .delete-btn {
+    background: none;
+    border: none;
+    color: #ff4444;
     cursor: pointer;
-    opacity: 0.6;
-    transition: opacity 0.2s ease;
-    padding: 5px;
-    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
 }
 
 .delete-btn:hover {
-    opacity: 1;
-    background: rgba(255, 0, 0, 0.1);
+    color: #ff0000;
 }
 
 .clear-history-btn {
     background: #ff4444;
     color: white;
-    padding: 8px 12px;
+    border: none;
+    padding: 8px 16px;
     border-radius: 4px;
     cursor: pointer;
-    text-align: center;
-    margin: 10px 0;
-    transition: background 0.2s ease;
+    margin-top: 20px;
+    width: 100%;
+    transition: background-color 0.2s ease;
 }
 
 .clear-history-btn:hover {
-    background: #ff6666;
+    background: #ff0000;
 }
 
 .position-display {
