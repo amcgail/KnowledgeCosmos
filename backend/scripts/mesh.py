@@ -10,6 +10,7 @@ import math
 from scipy.spatial import cKDTree
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
+import gc
 
 def calculate_grid_density(points, grid_size=32):
     """Calculate point density using a grid-based approach.
@@ -208,6 +209,54 @@ def GetFieldCenters():
     
     return field_data
 
+@cache
+def WriteFullMesh(
+    ALPHA = 3,
+    SAMPLE_PERCENT = 5  # Percentage of points to sample (1 = 1%)
+):
+    """Generate a mesh for the entire point cloud.
+    
+    Args:
+        ALPHA: Alpha value for alphashape algorithm (higher = looser fit)
+        SAMPLE_PERCENT: Percentage of points to randomly sample (1 = 1%)
+    """
+    from . import project_vectors, MAG
+    import shapely
+    
+    # Get embedding and valid paper IDs
+    embedding = project_vectors.GetUmapEmbedding()
+    valid_paper_ids = MAG.GetIds()
+    
+    # Filter papers to only include those in both MAG and embedding
+    paper_ids = sorted(valid_paper_ids & set(embedding))
+    print('Total points:', len(paper_ids))
+    
+    # Sample paper IDs first
+    n_sample = int(len(paper_ids) * SAMPLE_PERCENT / 100)
+    sampled_ids = sample(paper_ids, n_sample)
+    print(f'Sampling {n_sample} points ({SAMPLE_PERCENT}%)')
+    
+    # Only create points array for sampled IDs
+    points = [embedding[pid] for pid in sampled_ids]
+
+    # Remove variables that are no longer needed
+    del embedding, valid_paper_ids, paper_ids, sampled_ids
+    gc.collect()
+    
+    # Generate mesh from points
+    hull = alphashape.alphashape(points, ALPHA)
+    
+    print('Hull type:', type(hull))
+    
+    outd = DATA_FOLDER / 'static' / 'field_meshes'
+    outd.mkdir(exist_ok=True)
+    
+    with open(outd / "full.stl", 'wb') as outf:
+        outf.write(trimesh.exchange.export.export_stl(hull))
+    
+    return "full"
+
 if __name__ == '__main__':
     #WriteFieldMeshes.make(force=True)
-    GetFieldCenters.make(force=True)
+    #GetFieldCenters.make(force=True)
+    WriteFullMesh.make(force=True)

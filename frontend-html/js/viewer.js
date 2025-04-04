@@ -22,6 +22,10 @@ export class Viewer {
         this.lastH = null;
         this.animation = null;
 
+        this.fullMesh = null;
+
+        this.recentDistance = 0;
+
         // Make skip_intro globally accessible
         window.skip_intro = () => this.skip_intro();
 
@@ -33,7 +37,6 @@ export class Viewer {
         this.viewer.setFOV(60);
         this.viewer.setPointBudget(500_000);
         this.viewer.setMinNodeSize(2);
-        this.viewer.setMoveSpeed(2.5);
         this.viewer.setBackground('black');
 
         // Eye Dome Lighting
@@ -119,10 +122,9 @@ export class Viewer {
         renderArea.setAttribute('tabindex', '0');
         
         // Base movement speed and speed parameters
-        const baseSpeed = 5;
-        const maxSpeed = 500.0;
-        const speedExponent = 3;
-        const cloudCenter = new THREE.Vector3(730, 691, 725); // Approximate center of the cloud
+        const baseSpeed = 0.1;
+        const maxSpeed = 50.0;
+        const speedExponent = 2;
         
         // Continuous movement update
         const moveUpdate = () => {
@@ -138,11 +140,12 @@ export class Viewer {
             forward.applyQuaternion(camera.quaternion);
             right.applyQuaternion(camera.quaternion);
             
-            // Calculate distance from cloud center
-            const distance = camera.position.distanceTo(cloudCenter);
-            
-            // Calculate speed with exponential increase
-            const speedMultiplier = Math.min(maxSpeed, baseSpeed * Math.pow(distance / 400, speedExponent));
+            // Calculate speed with logarithmic increase
+            const speedMultiplier = this.recentDistance === 0 
+                ? baseSpeed 
+                : Math.min(maxSpeed, baseSpeed * Math.pow(2, this.recentDistance / 10));
+
+            console.log('Distance:', this.recentDistance, 'Speed:', speedMultiplier);
             
             // Handle both arrow keys and WASD
             if (keyStates['arrowup'] || keyStates['w']) moveVector.add(forward.multiplyScalar(speedMultiplier));
@@ -796,6 +799,81 @@ export class Viewer {
         volume.initialized = true;
         
         this.viewer.scene.addPolygonClipVolume(volume);
+    }
+
+    loadFullMesh() {
+        return new Promise((resolve, reject) => {
+            const loader = new STLLoader();
+            loader.load('/data/field_meshes/full.stl', (geometry) => {
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xff0000,
+                    wireframe: true,
+                    wireframeLinewidth: 2,
+                    side: THREE.DoubleSide
+                });
+
+                this.fullMesh = new THREE.Mesh(geometry, material);
+                this.fullMesh.scale.set(100, 100, 100);
+
+                if (false) {
+                    this.viewer.scene.scene.add(this.fullMesh);
+                }
+
+                // Start periodic distance checking
+                setInterval(() => {
+                    this.recentDistance = this.getDistanceToMesh();
+                }, 200);
+
+                resolve();
+            }, undefined, reject);
+        });
+    }
+
+    getDistanceToMesh() {
+        if (!this.fullMesh) return 0;
+
+        // Get camera position
+        const camera = this.viewer.scene.getActiveCamera();
+        const cameraPosition = camera.position.clone();
+
+        // Create a ray from the camera position in some direction
+        const ray = new THREE.Raycaster(cameraPosition, new THREE.Vector3(1, 0, 0));
+
+        // Test if camera is inside mesh by casting rays in multiple directions
+        const directions = [
+            new THREE.Vector3(1, 0, 0),
+            new THREE.Vector3(-1, 0, 0),
+            new THREE.Vector3(0, 1, 0),
+            new THREE.Vector3(0, -1, 0),
+            new THREE.Vector3(0, 0, 1),
+            new THREE.Vector3(0, 0, -1)
+        ];
+
+        for (const direction of directions) {
+            ray.set(cameraPosition, direction);
+            const intersects = ray.intersectObject(this.fullMesh);
+
+            // if we have an odd number of intersections in ANY direction, we're inside
+            if (intersects.length % 2 === 1) {
+                return 0;
+            }
+        }
+
+        // Find closest point on mesh to camera
+        const vertices = this.fullMesh.geometry.attributes.position.array;
+        let minDistance = Infinity;
+
+        for (let i = 0; i < vertices.length; i += 3) {
+            const vertex = new THREE.Vector3(
+                vertices[i] * 100,
+                vertices[i + 1] * 100,
+                vertices[i + 2] * 100
+            );
+            const distance = cameraPosition.distanceTo(vertex);
+            minDistance = Math.min(minDistance, distance);
+        }
+
+        return minDistance;
     }
 
 } 

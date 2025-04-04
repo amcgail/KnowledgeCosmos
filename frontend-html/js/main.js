@@ -20,6 +20,13 @@ document.addEventListener('DOMContentLoaded', () => {
         window.main_pc = pc;
         window.viewer.startPresentation();
 
+        // Load the full mesh after point cloud is loaded
+        window.viewer.loadFullMesh().then(() => {
+            console.log('Full mesh loaded successfully');
+        }).catch(error => {
+            console.error('Error loading full mesh:', error);
+        });
+
         // Load fields and add annotations
         window.fieldManager.loadFields().then(() => {
             window.fieldManager.addFieldAnnotations();
