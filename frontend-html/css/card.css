@@ -360,21 +360,6 @@
 .delete-btn:hover {
     opacity: 1;
 }
-
-.clear-history-btn {
-    padding: 8px;
-    background: #f0f0f0;
-    border-radius: 4px;
-    cursor: pointer;
-    text-align: center;
-    margin-bottom: 15px;
-    transition: background 0.2s ease;
-}
-
-.clear-history-btn:hover {
-    background: #e0e0e0;
-}
-
 /* Right Sidebar */
 .right-sidebar {
     position: fixed;
@@ -581,20 +566,6 @@
 
 .right-sidebar .delete-btn:hover {
     opacity: 1;
-}
-
-.right-sidebar .clear-history-btn {
-    padding: 8px;
-    background: #f0f0f0;
-    border-radius: 4px;
-    cursor: pointer;
-    text-align: center;
-    margin-bottom: 15px;
-    transition: background 0.2s ease;
-}
-
-.right-sidebar .clear-history-btn:hover {
-    background: #e0e0e0;
 }
 
 .right-sidebar .empty-state {
