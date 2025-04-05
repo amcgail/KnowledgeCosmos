@@ -496,7 +496,7 @@ export class FieldManager {
         const material = new THREE.MeshBasicMaterial({
             color: my_color.hex,
             wireframe: true,
-            wireframeLinewidth: 10
+            wireframeLinewidth: 8,
         });
 
         const loader = new STLLoader();
@@ -670,32 +670,10 @@ export class FieldManager {
         
         $pinIcon.click(() => {
             if (!this.pinnedConstellations.has(fieldName)) {
-                // Create a new mesh for the pinned constellation with the same color
-                const pinnedMaterial = new THREE.MeshBasicMaterial({
-                    color: color.hex,
-                    wireframe: true,
-                    wireframeLinewidth: 10,
-                    transparent: true,
-                    opacity: 0.8
+                this.visualizeFieldMesh(fieldName, (ret) => {        
+                    this.pinnedConstellations.set(fieldName, ret);
+                    $pinIcon.addClass('pinned');
                 });
-                
-                const loader = new STLLoader();
-                loader.load(
-                    `/data/field_meshes/${fieldName}.stl`,
-                    (geometry) => {
-                        const pinnedMesh = new THREE.Mesh(geometry, pinnedMaterial);
-                        pinnedMesh.scale.set(100, 100, 100);
-                        window.viewer.viewer.scene.scene.add(pinnedMesh);
-                        
-                        this.pinnedConstellations.set(fieldName, {
-                            mesh: pinnedMesh,
-                            color: color.rgb,
-                            name: fieldName
-                        });
-                        
-                        $pinIcon.addClass('pinned');
-                    }
-                );
             } else {
                 // Remove pinned constellation
                 const pinned = this.pinnedConstellations.get(fieldName);
