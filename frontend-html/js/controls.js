@@ -170,7 +170,7 @@ export class Controls {
                 if (item.id === 'label-toggle') {
                     item.classList.toggle('selected');
                     const labels_on = $('#label-toggle').hasClass('selected');
-                    window.fieldManager.labelsVisible = labels_on;
+                    window.uiManager.fieldManager.labelsVisible = labels_on;
                 }
 
                 // and slice control and rect select turn each other off
@@ -408,7 +408,6 @@ class YearFilter {
 
     setPointcloud(pointcloud) {
         this.pointcloud = pointcloud;
-        console.log('Pointcloud set:', pointcloud);
     }
 
     togglePanel() {

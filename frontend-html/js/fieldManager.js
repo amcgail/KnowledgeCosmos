@@ -4,6 +4,265 @@ import * as THREE from "/libs/three.js/build/three.module.js";
 
 THREE.Cache.enabled = true;
 
+/**
+ * Class to manage a single field and its subfields
+ * @class
+ */
+class Field {
+    /**
+     * Creates a new Field instance
+     * @param {string} name - The name of the field
+     * @param {Array} subfields - Array of subfield names
+     * @param {Object} colors - Color mapping for subfields
+     * @param {Array} orders - Order of subfields
+     */
+    constructor(manager, name, subfields, colors, orders) {
+        this.manager = manager;
+        this.name = name;
+        this.subfields = subfields;
+        this.colors = colors;
+        this.orders = orders;
+        this.pointCloud = null;
+        this.selectedSubfields = new Set();
+        this.isActive = false;
+        this.swatchElements = [];
+        this.labelElements = [];
+
+        this.$legendItem = null;
+        this.$expansionElement = null;
+
+        this.createLegendItem();
+    }
+
+    /**
+     * Sets the point cloud for this field
+     * @param {Object} pc - The point cloud object
+     */
+    setPointCloud(pc) {
+        this.pointCloud = pc;
+    }
+
+    /**
+     * Toggles the selection state of a subfield
+     * @param {string} subfield - The subfield to toggle
+     * @returns {boolean} True if any subfields are selected
+     */
+    toggleSubfield(subfield) {
+        if (this.selectedSubfields.has(subfield)) {
+            this.selectedSubfields.delete(subfield);
+        } else {
+            this.selectedSubfields.add(subfield);
+        }
+        this.updateSwatchVisibility();
+        return this.selectedSubfields.size > 0;
+    }
+
+    /**
+     * Clears all selected subfields
+     */
+    clearSubfields() {
+        this.selectedSubfields.clear();
+        this.updateSwatchVisibility();
+    }
+
+    /**
+     * Sets the active state of the field
+     * @param {boolean} active - Whether the field should be active
+     */
+    setActive(active) {
+        this.isActive = active;
+        if (this.pointCloud) {
+            this.pointCloud.visible = active;
+        }
+    }
+
+    /**
+     * Gets the classification scheme for the field
+     * @returns {Object} The classification scheme with visibility and color info
+     */
+    getClassificationScheme() {
+        const scheme = {};
+        this.orders.forEach((sub, index) => {
+            const visible = this.selectedSubfields.size === 0 || this.selectedSubfields.has(sub);
+            scheme[index + 1] = {
+                visible: visible,
+                name: sub,
+                color: this.colors[sub]
+            };
+        });
+        return scheme;
+    }
+
+    expandLegendItem() {
+        this.toggleLegendItem(true);
+    }
+
+    toggleLegendItem(state, callback) {
+        callback = callback || (() => {});
+
+        // Remove all existing expansions
+        $(".legend_expansion").remove();
+
+        if (state === true || (state === undefined && !this.$legendItem.data('expanded'))) {
+            const $ls = this.createExpansionElement();
+            $ls.insertAfter(this.$legendItem);
+            
+            $(".legend_item").data('expanded', false);
+            this.$legendItem.data('expanded', true);
+
+            callback(true);
+        } else {
+            this.$legendItem.data('expanded', false);
+
+            callback(false);
+        }
+    }
+    
+    /**
+     * Creates a legend item for a field
+     * @returns {jQuery} The created legend item element
+     */
+    createLegendItem() {
+        const $s = $("<span class='legend_item'>");
+        $s.data('expanded', false);
+        $s.html(this.name);
+
+        this.$legendItem = $s;
+        $s.click(() => this.toggleLegendItem(undefined, (state) => {
+            if (state) {
+                this.manager.applyFilter(this.name);
+                // Show main point cloud and hide all cached ones
+                window.main_pc.visible = true;
+                for (const [name, pointCloud] of this.manager.pointCloudCache.entries()) {
+                    const field = this.manager.fieldInstances.get(name);
+                    field.setActive(false);
+                    pointCloud.visible = false;
+                }
+            } else {
+                // Clear active field
+                this.manager.setActiveField(null);
+            }
+        }));
+
+        return $s;
+    }
+
+    /**
+     * Creates the UI expansion element for this field
+     * @param {Function} onSwatchClick - Callback function for swatch click
+     * @returns {jQuery} The created expansion element
+     */
+    createExpansionElement(onSwatchClick) {
+        const $ls = $("<div class='legend_expansion'>");
+        this.$expansionElement = $ls;
+        this.swatchElements = [];
+        this.labelElements = [];
+
+        const subfieldsList = [...this.orders];
+        
+        // Add any subfields that might not be in orders
+        for (const sub of this.subfields) {
+            if (!subfieldsList.includes(sub)) {
+                subfieldsList.push(sub);
+            }
+        }
+
+        // Create swatches for each subfield
+        for (const sub of subfieldsList) {
+            const c = this.colors[sub];
+            const rgb = `${c[0]*256}, ${c[1]*256}, ${c[2]*256}`;
+            
+            const $swatch = $(`<div class='swatch' style='background-color:rgb(${rgb})'>`);
+            const $label = $("<div class='label'>").html(sub);
+            
+            // Add click handler
+            $swatch.click(() => {
+                this.toggleSubfield(sub);
+            
+                // Get the classification scheme from the Field instance
+                const scheme = this.getClassificationScheme();
+                window.viewer.viewer.setClassifications(scheme);
+            });
+            
+            $ls.append($swatch, $label, $("<br>"));
+            this.swatchElements.push($swatch);
+            this.labelElements.push($label);
+        }
+
+        // Add "Other" swatch (not actually linked to any data)
+        $ls.append(
+            $(`<div class='swatch' style='background-color:rgb(50, 50, 50)'>`),
+            $("<div class='label'>").html('Other'),
+            $("<br>")
+        );
+        
+        // Initialize visibility
+        this.updateSwatchVisibility();
+        
+        return $ls;
+    }
+
+    /**
+     * Updates the visibility of swatches based on selected subfields
+     */
+    updateSwatchVisibility() {
+        if (!this.swatchElements.length) return;
+        
+        this.orders.forEach((sub, index) => {
+            if (index >= this.swatchElements.length) return;
+            
+            const $swatch = this.swatchElements[index];
+            const isVisible = this.selectedSubfields.size === 0 || this.selectedSubfields.has(sub);
+            $swatch.css('opacity', isVisible ? '1' : '0.5');
+        });
+    }
+
+    /**
+     * Gets the expansion element
+     * @returns {jQuery} The expansion element
+     */
+    getExpansionElement() {
+        return this.$expansionElement;
+    }
+}
+
+/**
+ * Utility class for color operations
+ * @class
+ */
+class ColorUtils {
+    /**
+     * Generates a random color in HSL, RGB, and HEX formats
+     * @returns {Object} Color object with HSL, RGB, and HEX values
+     */
+    static getRandomColor() {
+        const [h, s, l] = getColor();
+        return {
+            'hsl': [h, s, l],
+            'rgb': hslToRgb(h, s, l),
+            'hex': hslToHex(h, s, l)
+        };
+    }
+
+    /**
+     * Converts RGB array to CSS color string
+     * @param {Array} rgb - RGB color array [r, g, b]
+     * @returns {string} CSS color string
+     */
+    static rgbToCss(rgb) {
+        return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+    }
+
+    /**
+     * Converts RGB array to THREE.js Color object
+     * @param {Array} rgb - RGB color array [r, g, b]
+     * @returns {THREE.Color} THREE.js Color object
+     */
+    static rgbToThreeColor(rgb) {
+        return new THREE.Color(rgb[0]/255, rgb[1]/255, rgb[2]/255);
+    }
+}
+
 const FIELDS_TO_FORGET = [
     'Petrology',
     'Market economy',
@@ -26,7 +285,14 @@ const CENTRAL_FIELDS = [
     'Sociology'
 ];
 
+/**
+ * Main class for managing fields and their interactions
+ * @class
+ */
 export class FieldManager {
+    /**
+     * Creates a new FieldManager instance
+     */
     constructor() {
         this.fields = null;
         this.subfield_colors = null;
@@ -39,8 +305,14 @@ export class FieldManager {
         this.labelsVisible = false;
         this.lastClickTime = 0; // Track the timestamp of the last click
         this.pinnedConstellations = new Map(); // Initialize pinned constellations map
+        this.activeField = null; // Track current active field instead of using currentFilter
+        this.fieldInstances = new Map(); // Store Field instances
     }
 
+    /**
+     * Loads field data from JSON file
+     * @returns {Promise} Promise that resolves when fields are loaded
+     */
     loadFields() {
         return new Promise((resolve, reject) => {
             $.getJSON('/data/fields.json', (data) => {
@@ -49,12 +321,29 @@ export class FieldManager {
                 this.subfield_colors = data.subfield_colors;
                 this.subfields = data.subfields;
                 this.field_orders = data.field_orders;
-                this.field_centers = data.field_centers; // Store field centers
+                this.field_centers = data.field_centers;
+
+                // Initialize Field instances
+                for (const fieldName of Object.keys(this.subfields)) {
+                    this.fieldInstances.set(fieldName, new Field(
+                        this,
+                        fieldName,
+                        this.subfields[fieldName],
+                        this.subfield_colors[fieldName],
+                        this.field_orders[fieldName]
+                    ));
+                }
+
+                console.log(this.fieldInstances);
+
                 resolve(data);
             }).fail(reject);
         });
     }
 
+    /**
+     * Sets up autocomplete functionality for field lookup
+     */
     setupFieldAutocomplete() {
         $("#constellations-tab #field_lookup").autocomplete({
             source: (request, response) => {
@@ -70,148 +359,41 @@ export class FieldManager {
         });
     }
 
+    /**
+     * Sets up the legend UI for fields
+     */
     setupLegend() {
         const $l = $("#legend");
         $l.html("");
-        
+
         const top_fields = Object.keys(this.subfields).sort();
         
         for (const s of top_fields) {
             if (FIELDS_TO_FORGET.includes(s)) continue;
-
-            const $myl = this.createLegendItem(s);
+            const fieldInstance = this.fieldInstances.get(s);
+            const $myl = fieldInstance.$legendItem;
             this.subfield_links.push($myl);
             $l.append($myl);
         }
     }
 
-    createLegendItem(S) {
-        const $s = $("<span class='legend_item'>");
-        $s.data('expanded', false);
-        $s.html(S);
-
-        var _this = this;
-
-        $s.click(() => {
-            $(".legend_expansion").remove();
-
-            if (!$s.data('expanded')) {
-                function success(S) {
-                    const pc = _this.pointCloudCache.get(S);
-                    
-                    // Hide all other point clouds first
-                    window.main_pc.visible = false;
-                    for (const pc of _this.pointCloudCache.values()) {
-                        if (pc.name !== S) {
-                            pc.visible = false;
-                        }
-                    }
-
-                    pc.visible = true;
-                    $('.loading').fadeOut(200);
-                }
-
-                // Check if point cloud is already cached
-                if (_this.pointCloudCache.has(S)) {
-                    success(S);
-                } else {
-                    // Load and cache the point cloud
-                    $('.loading').show();
-                    this.loadFieldPointCloud(S, (pc) => {
-                        _this.pointCloudCache.set(S, pc);
-                        success(S);
-                    });
-                }
-
-                const $ls = this.createLegendExpansion(S);
-                $ls.insertAfter($s);
-                $(".legend_item").data('expanded', false);
-                $s.data('expanded', true);
-            } else {
-                // Show main point cloud and hide all cached ones
-                window.main_pc.visible = true;
-                for (const pc of this.pointCloudCache.values()) {
-                    pc.visible = false;
-                }
-                $s.data('expanded', false);
-            }
-        });
-
-        return $s;
+    /**
+     * Sets the active field and deactivates other fields
+     * @param {Field} field - The field to set as active
+     */
+    setActiveField(field) {
+        // Deactivate previous active field
+        if (this.activeField && this.activeField !== field) {
+            this.activeField.clearSubfields();
+        }
+        this.activeField = field;
     }
 
-    createLegendExpansion(S) {
-        const $ls = $("<div class='legend_expansion'>");
-
-        const subfields = this.field_orders[S];
-
-        // add the other ones
-        for (const sub of this.subfields[S]) {
-            if (subfields.includes(sub)) continue;
-            subfields.push(sub);
-        }
-
-        // Track which swatches are currently visible
-        // When all are unselected, show all and select all
-        let swatchStates = {};
-        for (const sub of subfields) {
-            swatchStates[sub] = false;
-        }
-
-        const updateVisibility = () => {
-            const scheme = {};
-            const allOff = Object.values(swatchStates).every(v => !v);
-
-            for (let i = 0; i < subfields.length; i++) {
-                const sub = subfields[i];
-                const c = this.subfield_colors[S][sub];
-                const rgb = `${c[0]*256}, ${c[1]*256}, ${c[2]*256}`;
-
-                const visible = allOff || swatchStates[sub];
-
-                scheme[i + 1] = {
-                    visible: visible,
-                    name: sub,
-                    color: c
-                };
-
-                $swatches[i].css('opacity', visible ? '1' : '0.5');
-            }
-
-            window.viewer.viewer.setClassifications(scheme);
-        };
-
-        const $swatches = [];
-
-        for (const sub of subfields) {
-            const c = this.subfield_colors[S][sub];
-            const rgb = `${c[0]*256}, ${c[1]*256}, ${c[2]*256}`;
-            
-            const $swatch = $(`<div class='swatch' style='background-color:rgb(${rgb})'>`);
-            const $label = $("<div class='label'>").html(sub);
-            
-            // Add click handler for toggling visibility
-            $swatch.click(() => {
-                swatchStates[sub] = !swatchStates[sub];
-                updateVisibility();
-            });
-            
-            $ls.append($swatch, $label, $("<br>"));
-            $swatches.push($swatch);
-        }
-
-        $ls.append(
-            $(`<div class='swatch' style='background-color:rgb(50, 50, 50)'>`),
-            $("<div class='label'>").html('Other'),
-            $("<br>")
-        );
-
-        
-        updateVisibility();
-
-        return $ls;
-    }
-
+    /**
+     * Loads a point cloud for a field
+     * @param {string} S - The field name
+     * @param {Function} callback - Callback function when point cloud is loaded
+     */
     loadFieldPointCloud(S, callback) {
         window.viewer.loadPointCloud(`/data/pointclouds/${S}/metadata.json`, (pc) => {
             // Configure point cloud material
@@ -228,10 +410,13 @@ export class FieldManager {
         });
     }
 
+    /**
+     * Sets up constellation add functionality
+     */
     setupConstellationAdd() {
         $("#constellations-tab #field_add").click(() => {
             const field = $("#field_lookup").val();
-            this.highlightField(field, (ret) => {
+            this.visualizeFieldMesh(field, (ret) => {
                 const c = ret.color;
                 
                 const $item = $("<div class='legend_item'>");
@@ -267,7 +452,25 @@ export class FieldManager {
         });
     }
 
-    highlightField(which, callback) {
+    /**
+     * Adjusts the brightness of the overall scene by modifying EDL opacity
+     */
+    adjustSceneBrightness() {  // Renamed from dimOverallScene
+        const X = {op: window.viewer.viewer.edlOpacity};
+        new TWEEN.Tween(X)
+            .to({op: 0.8}, 500)
+            .onUpdate(() => {
+                window.viewer.viewer.setEDLOpacity(X.op);
+            })
+            .start();
+    }
+
+    /**
+     * Visualizes a field by loading and displaying its 3D mesh
+     * @param {string} which - The field name to visualize
+     * @param {Function} callback - Callback function when visualization is complete
+     */
+    visualizeFieldMesh(which, callback) {
         const my_color = this.getRandomColor();
 
         const material = new THREE.MeshBasicMaterial({
@@ -291,18 +494,21 @@ export class FieldManager {
                     name: which
                 };
                 
-                this.dimOverallScene();
+                this.adjustSceneBrightness();
                 callback(ret);
             },
             (xhr) => {
-                console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
             },
             (error) => {
-                console.log(error);
             }
         );
     }
 
+    /**
+     * Updates the color of an annotation
+     * @param {string} fieldName - The field name
+     * @param {string} color - The new color
+     */
     updateAnnotationColor(fieldName, color) {
         // Find the annotation for this field and update its color
         window.viewer.viewer.scene.annotations.children.forEach(annotation => {
@@ -312,24 +518,129 @@ export class FieldManager {
         });
     }
 
+    /**
+     * Gets information about a field's parent field and hierarchy
+     * @param {string} fieldName - The field name
+     * @returns {Object | null} Object containing topField and subfield info, or null if not found
+     */
+    getFieldParentInfo(fieldName) {
+        // First check if it's a top field
+        if (Object.keys(this.subfields).includes(fieldName)) {
+            return { topField: fieldName, subfield: null };
+        }
+
+        // Find the parent field for this subfield
+        for (const [top, subs] of Object.entries(this.subfields)) {
+            if (subs.includes(fieldName)) {
+                return { topField: top, subfield: fieldName };
+            }
+        }
+
+        // If we can't find one, return null
+        return { topField: null, subfield: null };
+    }
+
+    /**
+     * Ensures a point cloud is loaded for a field
+     * @param {string} fieldName - The field name
+     * @param {Function} callback - Callback function when point cloud is loaded
+     */
+    ensurePointCloudLoaded(fieldName, callback) {
+        if (this.pointCloudCache.has(fieldName)) {
+            callback();
+            return;
+        }
+
+        $('.loading').show();
+        this.loadFieldPointCloud(fieldName, (pc) => {
+            this.pointCloudCache.set(fieldName, pc);
+            $('.loading').fadeOut(200);
+            callback();
+        });
+    }
+
+    /**
+     * Applies a filter to a specific top-level or subfield
+     * @param {string} fieldName - The top-level or subfield name
+     */
+    applyFilter(topField_or_subfield, subfield_or_null) {
+        // First, understand the field hierarchy
+        let topField;
+        let subfield;
+
+        if (!subfield_or_null) {
+            const getFieldHierarchy = this.getFieldParentInfo(topField_or_subfield);
+            topField = getFieldHierarchy.topField;
+            subfield = getFieldHierarchy.subfield;
+        } else if (this.fields.includes(topField_or_subfield)) {
+            topField = topField_or_subfield;
+            subfield = subfield_or_null;
+        } else {
+            console.warn(`Field ${topField_or_subfield} not found`);
+            return;
+        }
+
+        console.log(`Applying filter for ${topField} and ${subfield}`);
+
+        // If necessary, load the point cloud for this field
+        this.ensurePointCloudLoaded(topField, () => {
+            // Show only the selected field's point cloud
+            window.main_pc.visible = false;
+            for (const [name, pc] of this.pointCloudCache.entries()) {
+                pc.visible = name === topField;
+            };
+    
+            // Get the Field instance for this top field
+            const fieldInstance = this.fieldInstances.get(topField);
+            
+            // Sync Field's selected subfields with current filter
+            fieldInstance.clearSubfields();
+
+            // If we're filtering for a specific subfield, toggle it
+            if (subfield) {
+                fieldInstance.clearSubfields();
+                fieldInstance.toggleSubfield(subfield);
+            }
+            
+            // Get the classification scheme from the Field instance
+            const scheme = fieldInstance.getClassificationScheme();
+            
+            window.viewer.viewer.setClassifications(scheme);
+        });
+    }
+
+    /**
+     * Adds action buttons to an annotation
+     * @param {Object} annotation - The annotation object
+     * @param {string} fieldName - The field name
+     * @param {Object} color - The color object
+     */
     addAnnotationButtons(annotation, fieldName, color) {
         const $label = annotation.domElement.find('.annotation-label');
         
         // Create action buttons container
         const $actionButtons = $("<div class='annotation-buttons'>");
+
+        // Understand whether this is in the field hierarchy
+        const getFieldHierarchy = this.getFieldParentInfo(fieldName);
         
-        // Add Filter icon
-        const $filterIcon = $(`<svg class="icon filter-icon" width="16" height="16" viewBox="0 0 24 24">
-            <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
-        </svg>`);
-        $filterIcon.click(() => {
-            // Filter functionality will be added later
-            console.log("Filter clicked for", fieldName);
-        });
+        if (getFieldHierarchy.topField) {
+            const topField = this.fieldInstances.get(getFieldHierarchy.topField);
+            // Add Filter icon
+            const $filterIcon = $(`<svg class="icon filter-icon" width="16" height="16" viewBox="0 0 24 24">
+                <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
+            </svg>`);
+            $filterIcon.click(() => {
+                this.applyFilter(getFieldHierarchy.topField, getFieldHierarchy.subfield);
+                topField.expandLegendItem();
+            });
+
+            $actionButtons.append($filterIcon);
+        }
         
         // Add Pin icon
         const $pinIcon = $(`<svg class="icon pin-icon" width="16" height="16" viewBox="0 0 24 24" data-field="${fieldName}">
-            <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
+            <path d="M12 2l2.4 5.4L20 8.5l-4.4 3.9 1.4 5.6L12 15.6l-5 2.4 1.4-5.6L4 8.5l5.6-1.1z"/>
         </svg>`);
         
         // Check if this field is already pinned
@@ -374,10 +685,14 @@ export class FieldManager {
             }
         });
         
-        $actionButtons.append($filterIcon, $pinIcon);
+        $actionButtons.append($pinIcon);
         $label.after($actionButtons);
     }
 
+    /**
+     * Handles click events on annotations
+     * @param {string} fieldName - The field name
+     */
     handleAnnotationClick(fieldName) {
         // If clicking the same field again, deselect it
         if (this.selectedFieldName === fieldName) {
@@ -436,6 +751,9 @@ export class FieldManager {
             }
         });
 
+        // IMPORTANT: We no longer automatically apply filtering when clicking an annotation
+        // Instead, we just show the constellation and update the UI
+
         const material = new THREE.MeshBasicMaterial({
             color: my_color.hex,
             wireframe: true,
@@ -454,7 +772,7 @@ export class FieldManager {
                     mesh.scale.set(100, 100, 100);
                     window.viewer.viewer.scene.scene.add(mesh);
                     this.currentAnnotationConstellation = mesh;
-                    this.dimOverallScene();  // Add the scene dimming effect
+                    this.adjustSceneBrightness();  // Add the scene dimming effect
 
                     // Add to constellations legend if not already there
                     if (!$(`#const_legend .legend_item:has(span:contains('${fieldName}'))`).length) {
@@ -508,7 +826,6 @@ export class FieldManager {
                 }
             },
             (xhr) => {
-                console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
             },
             (error) => {
                 console.error('Error loading field mesh:', error);
@@ -516,25 +833,17 @@ export class FieldManager {
         );
     }
 
+    /**
+     * Generates a random color
+     * @returns {Object} Color object with HSL, RGB, and HEX values
+     */
     getRandomColor() {
-        const [h, s, l] = getColor();
-        return {
-            'hsl': [h, s, l],
-            'rgb': hslToRgb(h, s, l),
-            'hex': hslToHex(h, s, l)
-        }
+        return ColorUtils.getRandomColor();
     }
 
-    dimOverallScene() {  // Renamed from permanentHighlight
-        const X = {op: window.viewer.viewer.edlOpacity};
-        new TWEEN.Tween(X)
-            .to({op: 0.8}, 500)
-            .onUpdate(() => {
-                window.viewer.viewer.setEDLOpacity(X.op);
-            })
-            .start();
-    }
-
+    /**
+     * Updates the opacities of annotations based on camera position
+     */
     updateAnnotationOpacities() {
         if (!this.field_centers || !window.viewer) return;
         
@@ -701,6 +1010,9 @@ export class FieldManager {
         });
     }
 
+    /**
+     * Adds field annotations to the scene
+     */
     addFieldAnnotations() {
         if (!this.field_centers) return;
 

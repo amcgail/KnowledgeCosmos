@@ -12,7 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.controls = new Controls(window.viewer.viewer);
     window.paperManager = new PaperManager(window.viewer.viewer);
     window.uiManager = new UIManager();
-    window.fieldManager = new FieldManager();
     
     // Load the point cloud data
     window.viewer.loadPointCloud('/data/pointclouds/full/metadata.json', function(pc){
@@ -25,11 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Full mesh loaded successfully');
         }).catch(error => {
             console.error('Error loading full mesh:', error);
-        });
-
-        // Load fields and add annotations
-        window.fieldManager.loadFields().then(() => {
-            window.fieldManager.addFieldAnnotations();
         });
 
         // Mouse move tracking

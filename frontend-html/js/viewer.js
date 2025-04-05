@@ -145,8 +145,6 @@ export class Viewer {
                 ? baseSpeed 
                 : Math.min(maxSpeed, baseSpeed * (1 + Math.pow(this.recentDistance / 10, 2)));
 
-            console.log('Distance:', this.recentDistance, 'Speed:', speedMultiplier);
-            
             // Handle both arrow keys and WASD
             if (keyStates['arrowup'] || keyStates['w']) moveVector.add(forward.multiplyScalar(speedMultiplier));
             if (keyStates['arrowdown'] || keyStates['s']) moveVector.add(forward.multiplyScalar(-speedMultiplier));
