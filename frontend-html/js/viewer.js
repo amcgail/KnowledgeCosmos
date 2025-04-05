@@ -6,6 +6,10 @@ import { STLLoader } from "/libs/three.js/loaders/STLLoader.js";
 
 const SCROLL_SPEED = 2;
 
+// Camera position constants
+const HOME_POSITION = { x: 1230, y: 1190, z: 1050 };
+const HOME_LOOK_AT = { x: 620, y: 520, z: 640 };
+
 export class Viewer {
     constructor() {
         this.viewer = new Potree.Viewer(document.getElementById("potree_render_area"), {
@@ -427,13 +431,11 @@ export class Viewer {
         if (this.scrollProgress <= this.zoomSteps) {
             // Zoom phase with logarithmic scaling
             const linearProgress = this.scrollProgress / this.zoomSteps;
-            // Apply logarithmic interpolation to the progress
-            // const zoomProgress = Math.log(Math.E * (1 + linearProgress*(Math.E - 1))) - 1;
             const zoomProgress = 1 - (1-linearProgress)**3;
             
             // Calculate camera position with linear interpolation
             const startPos = { x: 28910, y: 74489, z: -6947 };
-            const endPos = { x: 1209, y: 1367, z: 1137 };
+            const endPos = HOME_POSITION;
             
             // Linear interpolation with logarithmic progress
             const currentPos = {
@@ -444,7 +446,7 @@ export class Viewer {
 
             // Calculate look-at point with smoother transition
             const startLookAt = { x: 573.58, y: 450.37, z: 418.63 };
-            const endLookAt = { x: 622, y: 546, z: 652 };
+            const endLookAt = HOME_LOOK_AT;
             
             // Use smooth easing for look-at point
             const currentLookAt = {
@@ -461,8 +463,8 @@ export class Viewer {
             const circleProgress = (this.scrollProgress - this.zoomSteps) / this.circleSteps;
             const angle = circleProgress * 2 * Math.PI;
             
-            const a = new THREE.Vector3(1209, 1367, 1137);
-            const b = new THREE.Vector3(730, 691, 725);
+            const a = new THREE.Vector3(HOME_POSITION.x, HOME_POSITION.y, HOME_POSITION.z);
+            const b = new THREE.Vector3(HOME_LOOK_AT.x, HOME_LOOK_AT.y, HOME_LOOK_AT.z);
             
             const curlit = a.clone().sub(b);
             curlit.applyAxisAngle(this.viewer.scene.getActiveCamera().up, angle);
@@ -470,7 +472,7 @@ export class Viewer {
             const result = b.clone().add(curlit);
             
             this.viewer.scene.view.position.set(result.x, result.y, result.z);
-            this.viewer.scene.view.lookAt(622, 546, 652);
+            this.viewer.scene.view.lookAt(HOME_LOOK_AT.x, HOME_LOOK_AT.y, HOME_LOOK_AT.z);
         }
     }
 
@@ -482,8 +484,8 @@ export class Viewer {
             ['Our hope is that the vastness of how much knowledge is out there and how it intersects disciplines will inspire you to see where we have left to explore', 9],
             ['as well as incite curiosity for disciplines you seek to learn about and find your own intersections.', 6],
             ["When we have an understanding of what we don't know, the possibilities of discovery then become limitless.", 9],
-            ['We invite you to explore', 3],
-            ['END', 8]
+            ['We invite you to explore', 9],
+            ['END', 14]
         ];
 
         // Calculate total duration of messages (excluding END)
@@ -561,7 +563,7 @@ export class Viewer {
                         if (beginButton) {
                             beginButton.remove();
                         }
-                        
+
                         $('.progress-container').toggleClass('visible', true);
                     }
                 }
@@ -693,10 +695,10 @@ export class Viewer {
         };
         
         new TWEEN.Tween(loc)
-            .to({ x: 1209, y: 1367, z: 1137 }, 1000)
+            .to({ x: HOME_POSITION.x, y: HOME_POSITION.y, z: HOME_POSITION.z }, 1000)
             .onUpdate(() => {
                 this.viewer.scene.view.position.set(loc.x, loc.y, loc.z);
-                this.viewer.scene.view.lookAt(622, 546, 652);
+                this.viewer.scene.view.lookAt(HOME_LOOK_AT.x, HOME_LOOK_AT.y, HOME_LOOK_AT.z);
             })
             .start();
         
@@ -710,7 +712,7 @@ export class Viewer {
             x: this.viewer.scene.view.position.x,
             y: this.viewer.scene.view.position.y,
             z: this.viewer.scene.view.position.z,
-            lx: 730, ly: 691, lz: 725
+            lx: HOME_LOOK_AT.x, ly: HOME_LOOK_AT.y, lz: HOME_LOOK_AT.z
         };
 
         let _this = this;
@@ -722,78 +724,7 @@ export class Viewer {
         
         new TWEEN.Tween(Y)
             .onUpdate(view_update)
-            .to({x: 1209, y: 1367, z: 1137}, 1000)
-            .start();
-    }
-
-    circle(delay = 19000) {
-        const a = new THREE.Vector3(
-            this.viewer.scene.view.position.x,
-            this.viewer.scene.view.position.y,
-            this.viewer.scene.view.position.z
-        );
-
-        const b = new THREE.Vector3(730, 691, 725);
-        const d = new THREE.Vector3();
-        this.viewer.scene.getActiveCamera().getWorldDirection(d);
-
-        const c = b.clone().sub(a).projectOnVector(d);
-        const e = a.clone().add(c);
-        
-        const X = {angle: 0, lk0: e.x, lk1: e.y, lk2: e.z};
-
-        // Optimize circle animation
-        new TWEEN.Tween(X)
-            .to({
-                angle: 2 * Math.PI,
-                lk0: b.x, lk1: b.y, lk2: b.z
-            }, delay)
-            .easing(TWEEN.Easing.Linear.None) // Use linear easing for smooth circular motion
-            .onUpdate(() => {
-                const curlit = a.clone().sub(b);
-                curlit.applyAxisAngle(this.viewer.scene.getActiveCamera().up, X.angle);
-                const result = b.clone().add(curlit);
-                
-                this.viewer.scene.view.position.set(result.x, result.y, result.z);
-                this.viewer.scene.view.lookAt(622, 546, 652);
-            })
-            .start();
-    }
-
-    tour() {
-        const a = new THREE.Vector3(
-            this.viewer.scene.view.position.x,
-            this.viewer.scene.view.position.y,
-            this.viewer.scene.view.position.z
-        );
-
-        const b = new THREE.Vector3(400, 400, 200);
-        const d = new THREE.Vector3();
-        this.viewer.scene.getActiveCamera().getWorldDirection(d);
-
-        const c = b.clone().sub(a).projectOnVector(d);
-        const e = a.clone().add(c);
-
-        const Y = {
-            x: this.viewer.scene.view.position.x,
-            y: this.viewer.scene.view.position.y,
-            z: this.viewer.scene.view.position.z,
-            lk0: e.x, lk1: e.y, lk2: e.z
-        };
-
-        const target = {
-            x: 584, y: 866, z: 358,
-            lk0: 400, lk1: 400, lk2: 200
-        };
-
-        const view_update = () => {
-            this.viewer.scene.view.position.set(Y.x, Y.y, Y.z);
-            this.viewer.scene.view.lookAt(Y.lk0, Y.lk1, Y.lk2);
-        };
-
-        new TWEEN.Tween(Y)
-            .onUpdate(view_update)
-            .to(target, 1000)
+            .to({x: HOME_POSITION.x, y: HOME_POSITION.y, z: HOME_POSITION.z}, 1000)
             .start();
     }
 
