@@ -37,7 +37,8 @@ export class FieldManager {
         this.currentAnnotationConstellation = null;  // Track constellation from annotation clicks only
         this.selectedFieldName = null; // Track currently selected field
         this.labelsVisible = false;
-        this.pendingMeshLoad = null; // Track the current mesh load
+        this.lastClickTime = 0; // Track the timestamp of the last click
+        this.pinnedConstellations = new Map(); // Initialize pinned constellations map
     }
 
     loadFields() {
@@ -302,25 +303,110 @@ export class FieldManager {
         );
     }
 
+    updateAnnotationColor(fieldName, color) {
+        // Find the annotation for this field and update its color
+        window.viewer.viewer.scene.annotations.children.forEach(annotation => {
+            if (annotation.title === fieldName) {
+                annotation.domElement.find('.annotation-label').css('color', color);
+            }
+        });
+    }
+
+    addAnnotationButtons(annotation, fieldName, color) {
+        const $label = annotation.domElement.find('.annotation-label');
+        
+        // Create action buttons container
+        const $actionButtons = $("<div class='annotation-buttons'>");
+        
+        // Add Filter icon
+        const $filterIcon = $(`<svg class="icon filter-icon" width="16" height="16" viewBox="0 0 24 24">
+            <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
+        </svg>`);
+        $filterIcon.click(() => {
+            // Filter functionality will be added later
+            console.log("Filter clicked for", fieldName);
+        });
+        
+        // Add Pin icon
+        const $pinIcon = $(`<svg class="icon pin-icon" width="16" height="16" viewBox="0 0 24 24" data-field="${fieldName}">
+            <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
+        </svg>`);
+        
+        // Check if this field is already pinned
+        if (this.pinnedConstellations.has(fieldName)) {
+            $pinIcon.addClass('pinned');
+        }
+        
+        $pinIcon.click(() => {
+            if (!this.pinnedConstellations.has(fieldName)) {
+                // Create a new mesh for the pinned constellation with the same color
+                const pinnedMaterial = new THREE.MeshBasicMaterial({
+                    color: color.hex,
+                    wireframe: true,
+                    wireframeLinewidth: 10,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                const loader = new STLLoader();
+                loader.load(
+                    `/data/field_meshes/${fieldName}.stl`,
+                    (geometry) => {
+                        const pinnedMesh = new THREE.Mesh(geometry, pinnedMaterial);
+                        pinnedMesh.scale.set(100, 100, 100);
+                        window.viewer.viewer.scene.scene.add(pinnedMesh);
+                        
+                        this.pinnedConstellations.set(fieldName, {
+                            mesh: pinnedMesh,
+                            color: color.rgb,
+                            name: fieldName
+                        });
+                        
+                        $pinIcon.addClass('pinned');
+                    }
+                );
+            } else {
+                // Remove pinned constellation
+                const pinned = this.pinnedConstellations.get(fieldName);
+                window.viewer.viewer.scene.scene.remove(pinned.mesh);
+                this.pinnedConstellations.delete(fieldName);
+                $pinIcon.removeClass('pinned');
+            }
+        });
+        
+        $actionButtons.append($filterIcon, $pinIcon);
+        $label.after($actionButtons);
+    }
+
     handleAnnotationClick(fieldName) {
         // If clicking the same field again, deselect it
         if (this.selectedFieldName === fieldName) {
             if (this.currentAnnotationConstellation) {
                 window.viewer.viewer.scene.scene.remove(this.currentAnnotationConstellation);
                 this.currentAnnotationConstellation = null;
+                // Remove from legend if not pinned
+                if (!this.pinnedConstellations.has(fieldName)) {
+                    $(`#const_legend .legend_item:has(span:contains('${fieldName}'))`).remove();
+                }
             }
             this.updateAnnotationColor(fieldName, 'white'); // Reset color
             this.selectedFieldName = null;
-            // Remove from constellations legend if exists
-            $(`#const_legend .legend_item:has(span:contains('${fieldName}'))`).remove();
+            // Remove buttons from all annotations
+            $('.annotation-buttons').remove();
             return;
         }
+
+        // Store the current timestamp
+        const clickTime = Date.now();
+        this.lastClickTime = clickTime;
 
         // Reset previous selection's color if exists
         if (this.selectedFieldName) {
             this.updateAnnotationColor(this.selectedFieldName, 'white');
-            // Remove previous field from constellations legend if exists
-            $(`#const_legend .legend_item:has(span:contains('${this.selectedFieldName}'))`).remove();
+            // Remove previous field from legend if not pinned
+            if (!this.pinnedConstellations.has(this.selectedFieldName)) {
+                $(`#const_legend .legend_item:has(span:contains('${this.selectedFieldName}'))`).remove();
+            }
         }
 
         // Remove previous annotation constellation if it exists
@@ -329,11 +415,8 @@ export class FieldManager {
             this.currentAnnotationConstellation = null;
         }
 
-        // Cancel any pending mesh load
-        if (this.pendingMeshLoad) {
-            this.pendingMeshLoad.cancel();
-            this.pendingMeshLoad = null;
-        }
+        // Remove buttons from all annotations
+        $('.annotation-buttons').remove();
 
         // Get a random color like constellations do
         const my_color = this.getRandomColor();
@@ -346,6 +429,8 @@ export class FieldManager {
         window.viewer.viewer.scene.annotations.children.forEach(annotation => {
             if (annotation.title === fieldName) {
                 annotation.domElement.addClass('selected-annotation');
+                // Add buttons to this annotation
+                this.addAnnotationButtons(annotation, fieldName, my_color);
             } else {
                 annotation.domElement.removeClass('selected-annotation');
             }
@@ -360,51 +445,66 @@ export class FieldManager {
         });
 
         const loader = new STLLoader();
-        this.pendingMeshLoad = loader;
         loader.load(
             `/data/field_meshes/${fieldName}.stl`,
             (geometry) => {
-                // Only proceed if this is still the current pending load
-                if (this.pendingMeshLoad === loader) {
+                // Only proceed if this is still the most recent click
+                if (clickTime === this.lastClickTime) {
                     const mesh = new THREE.Mesh(geometry, material);
                     mesh.scale.set(100, 100, 100);
                     window.viewer.viewer.scene.scene.add(mesh);
                     this.currentAnnotationConstellation = mesh;
                     this.dimOverallScene();  // Add the scene dimming effect
 
-                    // Add to constellations legend
-                    const $item = $("<div class='legend_item'>");
-                    const $r_link = $("<div class='link'>remove</div>").click(() => {
-                        window.viewer.viewer.scene.scene.remove(mesh);
-                        this.updateAnnotationColor(fieldName, 'white');
-                        this.selectedFieldName = null;
-                        this.currentAnnotationConstellation = null;
-                        $item.remove();
-                    });
+                    // Add to constellations legend if not already there
+                    if (!$(`#const_legend .legend_item:has(span:contains('${fieldName}'))`).length) {
+                        const $item = $("<div class='legend_item'>");
+                        const $r_link = $("<div class='link'>remove</div>").click(() => {
+                            if (this.pinnedConstellations.has(fieldName)) {
+                                // If pinned, just remove the pin
+                                const pinned = this.pinnedConstellations.get(fieldName);
+                                window.viewer.viewer.scene.scene.remove(pinned.mesh);
+                                this.pinnedConstellations.delete(fieldName);
+                                // Update pin icon if visible
+                                $(`.annotation-buttons .pin-icon[data-field='${fieldName}']`).removeClass('pinned');
+                            } else {
+                                // If not pinned, remove everything
+                                window.viewer.viewer.scene.scene.remove(mesh);
+                                this.updateAnnotationColor(fieldName, 'white');
+                                this.selectedFieldName = null;
+                                this.currentAnnotationConstellation = null;
+                            }
+                            $item.remove();
+                        });
 
-                    const c_text = `rgb(${my_color.rgb[0]},${my_color.rgb[1]},${my_color.rgb[2]})`;
-                    
-                    const $svg = $(`<svg height="25" width="25" style="stroke:${c_text}; stroke-width:2px; fill:${c_text}; cursor: pointer;">
-                        <polygon points="12.5,3 5,20 20,20" class="triangle" style="stroke: black; stroke-width: 1px;" />
-                    </svg>`);
+                        const c_text = `rgb(${my_color.rgb[0]},${my_color.rgb[1]},${my_color.rgb[2]})`;
+                        
+                        const $svg = $(`<svg height="25" width="25" style="stroke:${c_text}; stroke-width:2px; fill:${c_text}; cursor: pointer;">
+                            <polygon points="12.5,3 5,20 20,20" class="triangle" style="stroke: black; stroke-width: 1px;" />
+                        </svg>`);
 
-                    // Add click handler to change color
-                    $svg.click(() => {
-                        const newColor = this.getRandomColor();
-                        const newColorText = `rgb(${newColor.rgb[0]},${newColor.rgb[1]},${newColor.rgb[2]})`;
-                        $svg.attr('style', `stroke:${newColorText}; stroke-width:2px; fill:${newColorText}; cursor: pointer;`);
-                        mesh.material.color.setHex(newColor.hex);
-                        this.updateAnnotationColor(fieldName, newColorText);
-                    });
-                    
-                    $item.append(
-                        $svg,
-                        $(`<span class='lab'>${fieldName}</span>`),
-                        $r_link
-                    );
-                    
-                    $("#const_legend").append($item);
-                    this.pendingMeshLoad = null; // Clear the pending load
+                        // Add click handler to change color
+                        $svg.click(() => {
+                            const newColor = this.getRandomColor();
+                            const newColorText = `rgb(${newColor.rgb[0]},${newColor.rgb[1]},${newColor.rgb[2]})`;
+                            $svg.attr('style', `stroke:${newColorText}; stroke-width:2px; fill:${newColorText}; cursor: pointer;`);
+                            mesh.material.color.setHex(newColor.hex);
+                            this.updateAnnotationColor(fieldName, newColorText);
+                            // Update pinned constellation color if exists
+                            if (this.pinnedConstellations.has(fieldName)) {
+                                const pinned = this.pinnedConstellations.get(fieldName);
+                                pinned.mesh.material.color.setHex(newColor.hex);
+                            }
+                        });
+                        
+                        $item.append(
+                            $svg,
+                            $(`<span class='lab'>${fieldName}</span>`),
+                            $r_link
+                        );
+                        
+                        $("#const_legend").append($item);
+                    }
                 }
             },
             (xhr) => {
@@ -412,23 +512,8 @@ export class FieldManager {
             },
             (error) => {
                 console.error('Error loading field mesh:', error);
-                this.pendingMeshLoad = null; // Clear the pending load on error
             }
         );
-
-        // Safely handle renderer focus
-        if (window.viewer && window.viewer.renderer && window.viewer.renderer.domElement) {
-            window.viewer.renderer.domElement.focus();
-        }
-    }
-
-    updateAnnotationColor(fieldName, color) {
-        // Find the annotation for this field and update its color
-        window.viewer.viewer.scene.annotations.children.forEach(annotation => {
-            if (annotation.title === fieldName) {
-                annotation.domElement.find('.annotation-label').css('color', color);
-            }
-        });
     }
 
     getRandomColor() {
@@ -589,7 +674,7 @@ export class FieldManager {
             } else if (distance > maxDistance) {
                 // Hide non-central fields at regular max distance
                 $element.css({
-                    'display': 'none'
+                    'display': 'none',
                 });
             } else if (index < fullyVisibleCount) {
                 // First 5 annotations are fully visible
@@ -608,9 +693,9 @@ export class FieldManager {
                     'transform': `translate(-50%, -30px) scale(${scale})`
                 });
             } else {
-                // Rest are hidden
+                // Rest are hidden and non-interactive
                 $element.css({
-                    'display': 'none'
+                    'display': 'none',
                 });
             }
         });
