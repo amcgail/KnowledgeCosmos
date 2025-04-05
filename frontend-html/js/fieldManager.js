@@ -583,7 +583,9 @@ export class FieldManager {
      * Applies a filter to a specific top-level or subfield
      * @param {string} fieldName - The top-level or subfield name
      */
-    applyFilter(topField_or_subfield, subfield_or_null) {
+    applyFilter(topField_or_subfield, subfield_or_null, callback) {
+        callback = callback || (() => {});
+
         // First, understand the field hierarchy
         let topField;
         let subfield;
@@ -626,6 +628,8 @@ export class FieldManager {
             const scheme = fieldInstance.getClassificationScheme();
             
             window.viewer.viewer.setClassifications(scheme);
+
+            callback();
         });
     }
 
@@ -651,8 +655,26 @@ export class FieldManager {
                 <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
             </svg>`);
             $filterIcon.click(() => {
-                this.applyFilter(getFieldHierarchy.topField, getFieldHierarchy.subfield);
-                topField.expandLegendItem();
+                this.applyFilter(
+                    getFieldHierarchy.topField, 
+                    getFieldHierarchy.subfield,
+                    () => {
+                        topField.expandLegendItem();
+
+                        // we need to get rid of this annotation's constellation
+                        if (this.currentAnnotationConstellation) {
+                            window.viewer.viewer.scene.scene.remove(this.currentAnnotationConstellation);
+                            this.currentAnnotationConstellation = null;
+                        }
+
+                        // and de-select this field
+                        this.selectedFieldName = null;
+                        this.updateAnnotationColor(fieldName, 'white');
+
+                        // and remove buttons from all annotations
+                        $('.annotation-buttons').remove();
+                    }
+                );
             });
 
             $actionButtons.append($filterIcon);
