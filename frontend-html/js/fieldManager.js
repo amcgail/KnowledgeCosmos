@@ -37,6 +37,7 @@ export class FieldManager {
         this.currentAnnotationConstellation = null;  // Track constellation from annotation clicks only
         this.selectedFieldName = null; // Track currently selected field
         this.labelsVisible = false;
+        this.pendingMeshLoad = null; // Track the current mesh load
     }
 
     loadFields() {
@@ -328,6 +329,12 @@ export class FieldManager {
             this.currentAnnotationConstellation = null;
         }
 
+        // Cancel any pending mesh load
+        if (this.pendingMeshLoad) {
+            this.pendingMeshLoad.cancel();
+            this.pendingMeshLoad = null;
+        }
+
         // Get a random color like constellations do
         const my_color = this.getRandomColor();
 
@@ -353,53 +360,59 @@ export class FieldManager {
         });
 
         const loader = new STLLoader();
+        this.pendingMeshLoad = loader;
         loader.load(
             `/data/field_meshes/${fieldName}.stl`,
             (geometry) => {
-                const mesh = new THREE.Mesh(geometry, material);
-                mesh.scale.set(100, 100, 100);
-                window.viewer.viewer.scene.scene.add(mesh);
-                this.currentAnnotationConstellation = mesh;
-                this.dimOverallScene();  // Add the scene dimming effect
+                // Only proceed if this is still the current pending load
+                if (this.pendingMeshLoad === loader) {
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.scale.set(100, 100, 100);
+                    window.viewer.viewer.scene.scene.add(mesh);
+                    this.currentAnnotationConstellation = mesh;
+                    this.dimOverallScene();  // Add the scene dimming effect
 
-                // Add to constellations legend
-                const $item = $("<div class='legend_item'>");
-                const $r_link = $("<div class='link'>remove</div>").click(() => {
-                    window.viewer.viewer.scene.scene.remove(mesh);
-                    this.updateAnnotationColor(fieldName, 'white');
-                    this.selectedFieldName = null;
-                    this.currentAnnotationConstellation = null;
-                    $item.remove();
-                });
+                    // Add to constellations legend
+                    const $item = $("<div class='legend_item'>");
+                    const $r_link = $("<div class='link'>remove</div>").click(() => {
+                        window.viewer.viewer.scene.scene.remove(mesh);
+                        this.updateAnnotationColor(fieldName, 'white');
+                        this.selectedFieldName = null;
+                        this.currentAnnotationConstellation = null;
+                        $item.remove();
+                    });
 
-                const c_text = `rgb(${my_color.rgb[0]},${my_color.rgb[1]},${my_color.rgb[2]})`;
-                
-                const $svg = $(`<svg height="25" width="25" style="stroke:${c_text}; stroke-width:2px; fill:${c_text}; cursor: pointer;">
-                    <polygon points="12.5,3 5,20 20,20" class="triangle" style="stroke: black; stroke-width: 1px;" />
-                </svg>`);
+                    const c_text = `rgb(${my_color.rgb[0]},${my_color.rgb[1]},${my_color.rgb[2]})`;
+                    
+                    const $svg = $(`<svg height="25" width="25" style="stroke:${c_text}; stroke-width:2px; fill:${c_text}; cursor: pointer;">
+                        <polygon points="12.5,3 5,20 20,20" class="triangle" style="stroke: black; stroke-width: 1px;" />
+                    </svg>`);
 
-                // Add click handler to change color
-                $svg.click(() => {
-                    const newColor = this.getRandomColor();
-                    const newColorText = `rgb(${newColor.rgb[0]},${newColor.rgb[1]},${newColor.rgb[2]})`;
-                    $svg.attr('style', `stroke:${newColorText}; stroke-width:2px; fill:${newColorText}; cursor: pointer;`);
-                    mesh.material.color.setHex(newColor.hex);
-                    this.updateAnnotationColor(fieldName, newColorText);
-                });
-                
-                $item.append(
-                    $svg,
-                    $(`<span class='lab'>${fieldName}</span>`),
-                    $r_link
-                );
-                
-                $("#const_legend").append($item);
+                    // Add click handler to change color
+                    $svg.click(() => {
+                        const newColor = this.getRandomColor();
+                        const newColorText = `rgb(${newColor.rgb[0]},${newColor.rgb[1]},${newColor.rgb[2]})`;
+                        $svg.attr('style', `stroke:${newColorText}; stroke-width:2px; fill:${newColorText}; cursor: pointer;`);
+                        mesh.material.color.setHex(newColor.hex);
+                        this.updateAnnotationColor(fieldName, newColorText);
+                    });
+                    
+                    $item.append(
+                        $svg,
+                        $(`<span class='lab'>${fieldName}</span>`),
+                        $r_link
+                    );
+                    
+                    $("#const_legend").append($item);
+                    this.pendingMeshLoad = null; // Clear the pending load
+                }
             },
             (xhr) => {
                 console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
             },
             (error) => {
                 console.error('Error loading field mesh:', error);
+                this.pendingMeshLoad = null; // Clear the pending load on error
             }
         );
 
