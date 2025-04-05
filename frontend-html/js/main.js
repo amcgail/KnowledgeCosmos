@@ -31,10 +31,25 @@ document.addEventListener('DOMContentLoaded', () => {
             window.viewer.viewer.mouse = e.originalEvent;
         });
 
-        // Mouse click handling
+        // Mouse click handling with drag detection
+        let mouseDownPos = null;
         $('canvas').on('mousedown', (e) => {
             if (e.originalEvent.button === 0) { // left-click only
-                window.paperManager.checkAndDisplay();
+                mouseDownPos = { x: e.clientX, y: e.clientY };
+            }
+        });
+
+        $('canvas').on('mouseup', (e) => {
+            if (e.originalEvent.button === 0 && mouseDownPos) { // left-click only
+                const dx = e.clientX - mouseDownPos.x;
+                const dy = e.clientY - mouseDownPos.y;
+                const dragDistance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Only trigger if drag distance is very small (less than 5 pixels)
+                if (dragDistance < 5) {
+                    window.paperManager.checkAndDisplay();
+                }
+                mouseDownPos = null;
             }
         });
     });
