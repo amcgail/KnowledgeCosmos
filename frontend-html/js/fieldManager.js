@@ -516,8 +516,7 @@ export class FieldManager {
             
             if (!this.labelsVisible) {
                 $element.css({
-                    'display': 'none',
-                    'pointer-events': 'none'
+                    'display': 'none'
                 });
                 return;
             }
@@ -539,8 +538,7 @@ export class FieldManager {
             if (distance === 100000) {
                 // Hide all fields (including central) if behind camera
                 $element.css({
-                    'display': 'none',
-                    'pointer-events': 'none'
+                    'display': 'none'
                 });
                 return;
             }
@@ -549,8 +547,7 @@ export class FieldManager {
                 if (distance > centralMaxDistance) {
                     // Hide central fields at extreme distances
                     $element.css({
-                        'display': 'none',
-                        'pointer-events': 'none'
+                        'display': 'none'
                     });
                     return;
                 }
@@ -566,7 +563,6 @@ export class FieldManager {
                 $element.css({
                     'opacity': opacity.toFixed(2),
                     'display': 'block',
-                    'pointer-events': 'auto',
                     'transform': `translate(-50%, -30px) scale(${scale})`
                 });
             } else if (annotation.title === this.selectedFieldName) {
@@ -574,22 +570,19 @@ export class FieldManager {
                 $element.css({
                     'opacity': '1.0',
                     'display': 'block',
-                    'pointer-events': 'auto',
                     'transform': `translate(-50%, -30px) scale(${scale})`,
                     'z-index': '9999'
                 });
             } else if (distance > maxDistance) {
                 // Hide non-central fields at regular max distance
                 $element.css({
-                    'display': 'none',
-                    'pointer-events': 'none'
+                    'display': 'none'
                 });
             } else if (index < fullyVisibleCount) {
                 // First 5 annotations are fully visible
                 $element.css({
                     'opacity': '1.0',
                     'display': 'block',
-                    'pointer-events': 'auto',
                     'transform': `translate(-50%, -30px) scale(${scale})`
                 });
             } else if (index < totalVisibleCount) {
@@ -599,14 +592,12 @@ export class FieldManager {
                 $element.css({
                     'opacity': opacity.toFixed(2),
                     'display': 'block',
-                    'pointer-events': 'auto',
                     'transform': `translate(-50%, -30px) scale(${scale})`
                 });
             } else {
-                // Rest are hidden and non-interactive
+                // Rest are hidden
                 $element.css({
-                    'display': 'none',
-                    'pointer-events': 'none'
+                    'display': 'none'
                 });
             }
         });
