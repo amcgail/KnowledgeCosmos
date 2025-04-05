@@ -1,5 +1,6 @@
 from .common import *
 from .fields import GetFieldNames, FieldNameToPoints, PaperToFields
+from tqdm import tqdm
 
 __all__ = [
     'WriteFieldMeshes',
@@ -174,44 +175,136 @@ def calculate_camera_position(mesh, center, global_center, fov_degrees=60, scale
     
     return camera_pos.tolist()
 
+def is_point_inside_mesh(mesh, point):
+    """Check if a point is inside a mesh using ray casting.
+    
+    Args:
+        mesh: trimesh.Trimesh object
+        point: (3,) numpy array of point coordinates
+        
+    Returns:
+        bool: True if point is inside mesh, False otherwise
+    """
+    # Cast ray in positive x direction
+    ray_origins = np.array([point])
+    ray_directions = np.array([[1.0, 0.0, 0.0]])
+    
+    # Get intersections
+    locations, index_ray, index_tri = mesh.ray.intersects_location(
+        ray_origins=ray_origins,
+        ray_directions=ray_directions
+    )
+    
+    # Even number of intersections means outside
+    return len(locations) % 2 == 1
+
+def adjust_center_if_outside(mesh, center):
+    """If center is outside mesh, move it to closest vertex.
+    
+    Args:
+        mesh: trimesh.Trimesh object
+        center: (3,) numpy array of center coordinates
+        
+    Returns:
+        (3,) numpy array of adjusted center coordinates
+    """
+    center = np.array(center)
+    if not is_point_inside_mesh(mesh, center):
+        # Find closest vertex
+        distances = np.linalg.norm(mesh.vertices - center, axis=1)
+        closest_vertex_idx = np.argmin(distances)
+        return mesh.vertices[closest_vertex_idx]
+    return center
+
+def calculate_true_center(mesh, num_samples=25):
+    """Calculate center of mass by sampling points throughout the mesh volume.
+    
+    Args:
+        mesh: trimesh.Trimesh object
+        num_samples: Number of samples along each axis
+        pbar: tqdm progress bar to update description
+        
+    Returns:
+        (3,) numpy array of center coordinates
+    """
+    # Get mesh bounds
+    bounds = mesh.bounds
+    min_bound = bounds[0]
+    max_bound = bounds[1]
+    
+    # Create evenly spaced points along each axis
+    x = np.linspace(min_bound[0], max_bound[0], num_samples)
+    y = np.linspace(min_bound[1], max_bound[1], num_samples)
+    z = np.linspace(min_bound[2], max_bound[2], num_samples)
+    
+    # Create 3D grid of points
+    xx, yy, zz = np.meshgrid(x, y, z)
+    points = np.column_stack((xx.flatten(), yy.flatten(), zz.flatten()))
+    
+    # Filter to keep only interior points
+    interior_points = []
+    for point in points:
+        if is_point_inside_mesh(mesh, point):
+            interior_points.append(point)
+    
+    if not interior_points:
+        # Fallback to center of mass if no interior points found
+        return mesh.center_mass
+        
+    # Calculate center as mean of interior points
+    return np.mean(interior_points, axis=0)
+
 @cache
 def GetFieldCenters():
     """Returns a dictionary mapping field names to their centers and camera positions.
-    Centers are calculated as the center of mass of each mesh's volume.
-    Camera positions are calculated to always look inward toward the global center."""
+    Centers are calculated by sampling interior points of each mesh.
+    If a center is outside its mesh, it's moved to the closest vertex.
+    Camera positions are calculated to always look inward toward the global center.
+    Global center is calculated as average of all vertices for efficiency."""
     
     mesh_dir = DATA_FOLDER / 'static' / 'field_meshes'
     field_data = {}
     
     SCALE = 100  # Match the scale used in the frontend
     
-    # First pass: calculate the global center across all meshes
-    all_vertices = []
+    # First pass: load meshes and calculate global center from vertices
     meshes = {}
-    for stl_file in mesh_dir.glob('*.stl'):
-        mesh = trimesh.load(stl_file)
-        all_vertices.extend(mesh.vertices)
-        meshes[stl_file.stem] = mesh
+    all_vertices = []
     
-    # Calculate global center
-    all_vertices = np.array(all_vertices)
+    # Create progress bar for loading meshes
+    stl_files = list(mesh_dir.glob('*.stl'))
+    with tqdm(total=len(stl_files), desc="Loading meshes") as pbar:
+        for stl_file in stl_files:
+            mesh = trimesh.load(stl_file)
+            field_name = stl_file.stem
+            meshes[field_name] = mesh
+            all_vertices.extend(mesh.vertices)
+            pbar.set_postfix_str(f"loading {field_name}")
+            pbar.update(1)
+    
+    # Calculate global center as mean of all vertices
     global_center = np.mean(all_vertices, axis=0) * SCALE
     global_center = global_center.tolist()
     
     # Calculate centers for each mesh
-    for field_name, mesh in meshes.items():
-        # Get the center of mass of the mesh
-        center = mesh.center_mass * SCALE
-        center = center.tolist()
-        
-        # Calculate camera position
-        camera_pos = calculate_camera_position(mesh, center, global_center)
-        
-        field_data[field_name] = {
-            'center': center,
-            'camera_position': camera_pos,
-            'global_center': global_center
-        }
+    with tqdm(total=len(meshes), desc="Processing fields") as pbar:
+        for field_name, mesh in meshes.items():
+            pbar.set_postfix_str(f"processing {field_name}")
+            
+            # Get the true center and adjust if somehow outside
+            center = calculate_true_center(mesh)
+            center = adjust_center_if_outside(mesh, center)
+            center = (center * SCALE).tolist()
+            
+            # Calculate camera position
+            camera_pos = calculate_camera_position(mesh, center, global_center)
+            
+            field_data[field_name] = {
+                'center': center,
+                'camera_position': camera_pos
+            }
+            
+            pbar.update(1)
     
     return field_data
 
@@ -264,5 +357,5 @@ def WriteFullMesh(
 
 if __name__ == '__main__':
     #WriteFieldMeshes.make(force=True)
-    #GetFieldCenters.make(force=True)
-    WriteFullMesh.make(force=True)
+    GetFieldCenters.make(force=True)
+    #WriteFullMesh.make(force=True)
