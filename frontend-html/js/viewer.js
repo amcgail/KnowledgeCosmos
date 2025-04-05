@@ -4,6 +4,8 @@ import { PaperManager } from './paper.js';
 import { UIManager } from './ui.js';
 import { STLLoader } from "/libs/three.js/loaders/STLLoader.js";
 
+const SCROLL_SPEED = 2;
+
 export class Viewer {
     constructor() {
         this.viewer = new Potree.Viewer(document.getElementById("potree_render_area"), {
@@ -410,9 +412,9 @@ export class Viewer {
         }
         
         if (event.deltaY > 0) {
-            this.scrollProgress = Math.min(this.maxScroll, this.scrollProgress + 1);
+            this.scrollProgress = Math.min(this.maxScroll, this.scrollProgress + SCROLL_SPEED);
         } else {
-            this.scrollProgress = Math.max(0, this.scrollProgress - 1);
+            this.scrollProgress = Math.max(0, this.scrollProgress - SCROLL_SPEED);
         }
         
         this.displayCurrentMessage();
@@ -469,12 +471,6 @@ export class Viewer {
             
             this.viewer.scene.view.position.set(result.x, result.y, result.z);
             this.viewer.scene.view.lookAt(622, 546, 652);
-        }
-
-        // If we've reached the end, increase point budget and end presentation
-        if (this.scrollProgress >= this.maxScroll) {
-            this.viewer.setPointBudget(2_000_000);
-            this.doneWithIntro();
         }
     }
 
@@ -545,6 +541,29 @@ export class Viewer {
                     progressBar.style.display = 'block';
                     const circleProgress = (this.scrollProgress - this.zoomSteps) / this.circleSteps;
                     progressBar.style.width = `${circleProgress * 100}%`;
+                    
+                    // Add begin button when circle is complete
+                    if (circleProgress >= 1) {
+                        // Remove existing begin button if any
+                        const existingButton = infoElement.querySelector('.begin-button');
+                        if (!existingButton) {
+                            const beginButton = document.createElement('button');
+                            beginButton.textContent = 'Click here to begin';
+                            beginButton.className = 'begin-button';
+                            beginButton.onclick = () => this.doneWithIntro();
+                            infoElement.appendChild(beginButton);
+                        }
+
+                        $('.progress-container').toggleClass('visible', false);
+                    } else {
+                        // Remove begin button if it exists
+                        const beginButton = infoElement.querySelector('.begin-button');
+                        if (beginButton) {
+                            beginButton.remove();
+                        }
+                        
+                        $('.progress-container').toggleClass('visible', true);
+                    }
                 }
                 
                 // Hide only the scroll indicator
@@ -571,6 +590,8 @@ export class Viewer {
     }
 
     doneWithIntro() {
+        this.viewer.setPointBudget(2_000_000);
+
         // Remove scroll event listener
         window.removeEventListener('wheel', this.handleScrollBound);
         
