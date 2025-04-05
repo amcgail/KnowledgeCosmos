@@ -134,6 +134,8 @@ class Field {
             } else {
                 // Clear active field
                 this.manager.setActiveField(null);
+                this.manager.topLevelFilter = null;
+
                 // Show main point cloud and hide all cached ones
                 window.main_pc.visible = true;
                 for (const [name, pointCloud] of this.manager.pointCloudCache.entries()) {
@@ -597,7 +599,7 @@ export class FieldManager {
             console.warn(`Field ${topField_or_subfield} not found`);
             return;
         }
-
+        
         // If necessary, load the point cloud for this field
         this.ensurePointCloudLoaded(topField, () => {
             // Show only the selected field's point cloud
@@ -605,6 +607,8 @@ export class FieldManager {
             for (const [name, pc] of this.pointCloudCache.entries()) {
                 pc.visible = name === topField;
             };
+            
+            this.topLevelFilter = topField;
     
             // Get the Field instance for this top field
             const fieldInstance = this.fieldInstances.get(topField);
@@ -868,19 +872,6 @@ export class FieldManager {
         const cameraDirection = new THREE.Vector3();
         camera.getWorldDirection(cameraDirection);
         
-        // Get the currently filtered field (if any)
-        let filteredField = null;
-        for (const [topField, subfields] of Object.entries(this.subfields)) {
-            // Check if any swatch in this field's expansion is active
-            const $expansion = $(`.legend_expansion:has(.legend_item:contains('${topField}'))`);
-            if ($expansion.length) {
-                const $activeSwatch = $expansion.find('.swatch[style*="opacity: 1"]');
-                if ($activeSwatch.length) {
-                    filteredField = topField;
-                    break;
-                }
-            }
-        }
         
         // Calculate distances for all annotations
         const annotationsWithDistances = [];
@@ -897,9 +888,9 @@ export class FieldManager {
             let distance = dot < 0 ? 100000 : cameraPosition.distanceTo(annotation.position);
             
             // If there's a filtered field, only show its subfields
-            if (filteredField) {
+            if (this.topLevelFilter) {
                 // If this is a subfield of the filtered field, keep its distance
-                if (this.subfields[filteredField]?.includes(annotation.title)) {
+                if (this.subfields[this.topLevelFilter]?.includes(annotation.title)) {
                     // Keep the original distance
                 } else {
                     // Push everything else far away
