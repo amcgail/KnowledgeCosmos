@@ -17,6 +17,9 @@ export class Viewer {
             logarithmicDepthBuffer: true
         });
         
+        // Create separate scene for collision mesh
+        this.collisionScene = new THREE.Scene();
+        
         this.setupViewer();
         this.setupControls();
         this.setupInitialState();
@@ -132,6 +135,8 @@ export class Viewer {
         const maxSpeed = 20.0;
         const speedExponent = 2;
         
+        let rotating = false;
+        
         // Continuous movement update
         const moveUpdate = () => {
             const view = this.viewer.scene.view;
@@ -165,6 +170,105 @@ export class Viewer {
                     view.position.z + moveVector.z
                 );
             }
+
+            // Wait for the next tick to update lookAt
+            setTimeout(() => {
+                // If we are inside the mesh, set lookAt to the camera position
+                if (this.recentDistance < 100) {
+                    // Only adjust lookAt when movement keys are pressed
+                    if (keyStates['arrowup'] || keyStates['arrowdown'] || 
+                        keyStates['arrowleft'] || keyStates['arrowright'] ||
+                        keyStates['w'] || keyStates['s'] || 
+                        keyStates['a'] || keyStates['d']) {
+                        
+                        // Get camera's forward direction
+                        const camera = this.viewer.scene.getActiveCamera();
+                        const forward = new THREE.Vector3(0, 0, -1);
+                        forward.applyQuaternion(camera.quaternion);
+                        
+                        // Set lookAt to a point slightly in front of the camera
+                        const lookAtPoint = view.position.clone().add(forward.multiplyScalar(0.1));
+                        this.viewer.scene.view.lookAt(
+                            lookAtPoint.x,
+                            lookAtPoint.y,
+                            lookAtPoint.z
+                        );
+                    }
+                } else {
+                    // When outside the mesh, calculate the point where camera's line of sight is closest to mesh center
+                    const camera = this.viewer.scene.getActiveCamera();
+                    const cameraPosition = camera.position.clone();
+                    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                    
+                    // Get mesh center (assuming HOME_LOOK_AT is the center of the mesh)
+                    const meshCenter = new THREE.Vector3(HOME_LOOK_AT.x, HOME_LOOK_AT.y, HOME_LOOK_AT.z);
+                    
+                    // Calculate vector from camera to mesh center
+                    const toCenter = meshCenter.clone().sub(cameraPosition);
+                    
+                    // Project toCenter onto forward to find closest point on line of sight to mesh center
+                    const dotProduct = toCenter.dot(forward);
+                    const closestPoint = cameraPosition.clone().add(forward.clone().multiplyScalar(dotProduct));
+                    
+                    // Store current yaw
+                    const currentYaw = this.viewer.scene.view.yaw;
+                    
+                    // Look at the target. If it's in the opposite direction, do it slowly
+                    if(toCenter.dot(forward) < 0) {
+                        if (!rotating) {
+                            console.log("Rotating");
+                            rotating = true;
+                                
+                            setTimeout(() => {
+                                rotating = false;
+                            }, 1000);
+                            
+                            // Create animation for smooth rotation
+                            const startQuaternion = camera.quaternion.clone();
+                            
+                            // Calculate target quaternion (looking at mesh center)
+                            const targetQuaternion = new THREE.Quaternion();
+                            
+                            // Create a temporary camera to get the quaternion for looking at the target
+                            const tempCamera = camera.clone();
+                            tempCamera.position.copy(cameraPosition);
+                            tempCamera.lookAt(meshCenter);
+                            targetQuaternion.copy(tempCamera.quaternion);
+                            
+                            // Setup the animation
+                            const rotationObj = { t: 0 };
+                            new TWEEN.Tween(rotationObj)
+                                .to({ t: 1 }, 1000) // 1 second duration
+                                .easing(TWEEN.Easing.Quadratic.InOut)
+                                .onUpdate(() => {
+                                    // Interpolate between start and target quaternions
+                                    THREE.Quaternion.slerp(
+                                        startQuaternion,
+                                        targetQuaternion,
+                                        camera.quaternion,
+                                        rotationObj.t
+                                    );
+                                })
+                                .onComplete(() => {  
+                                    // Update the view
+                                    this.viewer.scene.view.lookAt(
+                                        meshCenter.x,
+                                        meshCenter.y,
+                                        meshCenter.z
+                                    );
+                                })
+                                .start();
+                        }
+                    } else {
+                        if (!rotating) {
+                            this.viewer.scene.view.lookAt(closestPoint);
+                        }
+                    }
+                    
+                    // Restore the original yaw
+                    this.viewer.scene.view.yaw = currentYaw;
+                }
+            }, 0);
             
             requestAnimationFrame(moveUpdate);
         };
@@ -756,22 +860,21 @@ export class Viewer {
             const loader = new STLLoader();
             loader.load('/data/field_meshes/full.stl', (geometry) => {
                 const material = new THREE.MeshBasicMaterial({
-                    color: 0xff0000,
-                    wireframe: true,
-                    wireframeLinewidth: 2,
+                    visible: false,
                     side: THREE.DoubleSide
                 });
 
                 this.fullMesh = new THREE.Mesh(geometry, material);
                 this.fullMesh.scale.set(100, 100, 100);
-
-                if (false) {
-                    this.viewer.scene.scene.add(this.fullMesh);
-                }
+                
+                // Update the world matrix of the mesh
+                this.fullMesh.updateMatrix();
+                this.fullMesh.updateMatrixWorld(true);
 
                 // Start periodic distance checking
                 setInterval(() => {
                     this.recentDistance = this.getDistanceToMesh();
+
                 }, 200);
 
                 resolve();
@@ -786,9 +889,6 @@ export class Viewer {
         const camera = this.viewer.scene.getActiveCamera();
         const cameraPosition = camera.position.clone();
 
-        // Create a ray from the camera position in some direction
-        const ray = new THREE.Raycaster(cameraPosition, new THREE.Vector3(1, 0, 0));
-
         // Test if camera is inside mesh by casting rays in multiple directions
         const directions = [
             new THREE.Vector3(1, 0, 0),
@@ -799,9 +899,12 @@ export class Viewer {
             new THREE.Vector3(0, 0, -1)
         ];
 
+        // Update the world matrix before raycasting
+        this.fullMesh.updateMatrixWorld(true);
+
         for (const direction of directions) {
-            ray.set(cameraPosition, direction);
-            const intersects = ray.intersectObject(this.fullMesh);
+            const ray = new THREE.Raycaster(cameraPosition, direction.normalize());
+            const intersects = ray.intersectObject(this.fullMesh, false);
 
             // if we have an odd number of intersections in ANY direction, we're inside
             if (intersects.length % 2 === 1) {
@@ -813,12 +916,16 @@ export class Viewer {
         const vertices = this.fullMesh.geometry.attributes.position.array;
         let minDistance = Infinity;
 
+        // Get world matrix for vertex transformation
+        const matrix = this.fullMesh.matrixWorld;
+
         for (let i = 0; i < vertices.length; i += 3) {
             const vertex = new THREE.Vector3(
-                vertices[i] * 100,
-                vertices[i + 1] * 100,
-                vertices[i + 2] * 100
-            );
+                vertices[i],
+                vertices[i + 1],
+                vertices[i + 2]
+            ).applyMatrix4(matrix);
+            
             const distance = cameraPosition.distanceTo(vertex);
             minDistance = Math.min(minDistance, distance);
         }
