@@ -490,8 +490,8 @@ export class FieldManager {
      * @param {string} which - The field name to visualize
      * @param {Function} callback - Callback function when visualization is complete
      */
-    visualizeFieldMesh(which, callback) {
-        const my_color = this.getRandomColor();
+    visualizeFieldMesh(which, callback, color) {
+        const my_color = color ? color : this.getRandomColor();
 
         const material = new THREE.MeshBasicMaterial({
             color: my_color.hex,
@@ -673,7 +673,7 @@ export class FieldManager {
                 this.visualizeFieldMesh(fieldName, (ret) => {        
                     this.pinnedConstellations.set(fieldName, ret);
                     $pinIcon.addClass('pinned');
-                });
+                }, color);
             } else {
                 // Remove pinned constellation
                 const pinned = this.pinnedConstellations.get(fieldName);
@@ -691,7 +691,7 @@ export class FieldManager {
      * Handles click events on annotations
      * @param {string} fieldName - The field name
      */
-    handleAnnotationClick(fieldName) {
+    handleAnnotationClick(fieldName, fieldData) {
         // If clicking the same field again, deselect it
         if (this.selectedFieldName === fieldName) {
             if (this.currentAnnotationConstellation) {
@@ -708,6 +708,15 @@ export class FieldManager {
             $('.annotation-buttons').remove();
             return;
         }
+
+        // Otherwise, we need to move the camera
+		let {endTarget, endPosition} = fieldData;
+        
+        endTarget = new THREE.Vector3().fromArray(endTarget);
+        endPosition = new THREE.Vector3().fromArray(endPosition);
+
+        let scene = window.viewer.viewer.scene;
+        Potree.Utils.moveTo(scene, endPosition, endTarget);
 
         // Store the current timestamp
         const clickTime = Date.now();
@@ -1006,14 +1015,17 @@ export class FieldManager {
             // Create annotation using the calculated camera position
             const annotation = new Potree.Annotation({
                 position: fieldData.center,
-                cameraPosition: fieldData.camera_position,
-                cameraTarget: fieldData.center,
+                cameraPosition: {x: null, y: null, z: null}, // didn't know you had to do this...
+                cameraTarget: {x: null, y: null, z: null}, // didn't know you had to do this...
                 title: fieldName,
                 description: null
             });
             
             annotation.addEventListener('click', () => {
-                this.handleAnnotationClick(fieldName);
+                this.handleAnnotationClick(fieldName, {
+                    endPosition: fieldData.camera_position,
+                    endTarget: fieldData.center
+                });
             });
 
             // Add annotation to the scene
