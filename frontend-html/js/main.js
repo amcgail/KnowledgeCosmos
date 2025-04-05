@@ -39,6 +39,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Disable default double-click zoom
+        const orbitControls = window.viewer.viewer.orbitControls;
+        orbitControls.removeEventListeners('dblclick');
+
+        // Add double-click handler to adjust lookAt before zoom
+        function dblclick(e) {
+            // First 'lookAt' a spot right in front of the camera
+            window.viewer.lookDownNose();
+
+            // Then do the default behavior
+            orbitControls.zoomToLocation(e.mouse);
+        }
+        window.viewer.viewer.orbitControls.addEventListener('dblclick', dblclick);
+
         $('canvas').on('mouseup', (e) => {
             if (e.originalEvent.button === 0 && mouseDownPos) { // left-click only
                 const dx = e.clientX - mouseDownPos.x;

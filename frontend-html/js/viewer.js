@@ -181,18 +181,7 @@ export class Viewer {
                         keyStates['w'] || keyStates['s'] || 
                         keyStates['a'] || keyStates['d']) {
                         
-                        // Get camera's forward direction
-                        const camera = this.viewer.scene.getActiveCamera();
-                        const forward = new THREE.Vector3(0, 0, -1);
-                        forward.applyQuaternion(camera.quaternion);
-                        
-                        // Set lookAt to a point slightly in front of the camera
-                        const lookAtPoint = view.position.clone().add(forward.multiplyScalar(0.1));
-                        this.viewer.scene.view.lookAt(
-                            lookAtPoint.x,
-                            lookAtPoint.y,
-                            lookAtPoint.z
-                        );
+                            this.lookDownNose();
                     }
                 } else {
                     // When outside the mesh, calculate the point where camera's line of sight is closest to mesh center
@@ -931,6 +920,22 @@ export class Viewer {
         }
 
         return minDistance;
+    }
+
+    lookDownNose() {
+        // Get camera's forward direction
+        const camera = this.viewer.scene.getActiveCamera();
+        const forward = new THREE.Vector3(0, 0, -1);
+        forward.applyQuaternion(camera.quaternion);
+        
+        // Set lookAt to a point slightly in front of the camera
+        const view = this.viewer.scene.view;
+        const lookAtPoint = view.position.clone().add(forward.multiplyScalar(0.1));
+        this.viewer.scene.view.lookAt(
+            lookAtPoint.x,
+            lookAtPoint.y,
+            lookAtPoint.z
+        );
     }
 
 } 
