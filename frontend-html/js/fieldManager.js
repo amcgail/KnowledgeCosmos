@@ -158,6 +158,16 @@ class Field {
         this.swatchElements = [];
         this.labelElements = [];
 
+        // Add clear button
+        const $clearButton = $("<div class='clear-selection'>Clear</div>");
+        $clearButton.click(() => {
+            this.clearSubfields();
+            // Get the classification scheme from the Field instance
+            const scheme = this.getClassificationScheme();
+            window.viewer.viewer.setClassifications(scheme);
+        });
+        $ls.append($clearButton);
+
         const subfieldsList = [...this.orders];
         
         // Add any subfields that might not be in orders
@@ -207,6 +217,14 @@ class Field {
      */
     updateSwatchVisibility() {
         if (!this.swatchElements.length) return;
+        
+        // Show/hide clear button based on selection state
+        const $clearButton = this.$expansionElement.find('.clear-selection');
+        if (this.selectedSubfields.size > 0) {
+            $clearButton.addClass('visible');
+        } else {
+            $clearButton.removeClass('visible');
+        }
         
         this.orders.forEach((sub, index) => {
             if (index >= this.swatchElements.length) return;

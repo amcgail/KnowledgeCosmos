@@ -56,4 +56,32 @@
 
 .selected-annotation .annotation-label {
     font-weight: bold;
+}
+
+.legend_expansion {
+    position: relative;
+}
+
+.clear-selection {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 2px 6px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s ease;
+}
+
+.clear-selection:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.clear-selection.visible {
+    opacity: 1;
 } 
