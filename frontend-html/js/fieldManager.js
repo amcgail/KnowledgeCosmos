@@ -131,6 +131,9 @@ class Field {
         $s.click(() => this.toggleLegendItem(undefined, (state) => {
             if (state) {
                 this.manager.applyFilter(this.name);
+            } else {
+                // Clear active field
+                this.manager.setActiveField(null);
                 // Show main point cloud and hide all cached ones
                 window.main_pc.visible = true;
                 for (const [name, pointCloud] of this.manager.pointCloudCache.entries()) {
@@ -138,9 +141,6 @@ class Field {
                     field.setActive(false);
                     pointCloud.visible = false;
                 }
-            } else {
-                // Clear active field
-                this.manager.setActiveField(null);
             }
         }));
 
@@ -597,8 +597,6 @@ export class FieldManager {
             console.warn(`Field ${topField_or_subfield} not found`);
             return;
         }
-
-        console.log(`Applying filter for ${topField} and ${subfield}`);
 
         // If necessary, load the point cloud for this field
         this.ensurePointCloudLoaded(topField, () => {
