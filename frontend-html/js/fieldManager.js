@@ -718,6 +718,11 @@ export class FieldManager {
         let scene = window.viewer.viewer.scene;
         Potree.Utils.moveTo(scene, endPosition, endTarget);
 
+        // And once that 500ms tween is done, we need to update lookAt
+        setTimeout(() => {
+            window.viewer.viewer.scene.view.lookAt(endTarget.x, endTarget.y, endTarget.z);
+        }, 500);
+
         // Store the current timestamp
         const clickTime = Date.now();
         this.lastClickTime = clickTime;

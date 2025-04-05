@@ -173,16 +173,15 @@ export class Viewer {
 
             // Wait for the next tick to update lookAt
             setTimeout(() => {
+                // Only adjust lookAt when movement keys are pressed
+                if (!(keyStates['arrowup'] || keyStates['arrowdown'] || 
+                    keyStates['arrowleft'] || keyStates['arrowright'] ||
+                    keyStates['w'] || keyStates['s'] || 
+                    keyStates['a'] || keyStates['d'])) return;
+
                 // If we are inside the mesh, set lookAt to the camera position
-                if (this.recentDistance < 100) {
-                    // Only adjust lookAt when movement keys are pressed
-                    if (keyStates['arrowup'] || keyStates['arrowdown'] || 
-                        keyStates['arrowleft'] || keyStates['arrowright'] ||
-                        keyStates['w'] || keyStates['s'] || 
-                        keyStates['a'] || keyStates['d']) {
-                        
-                            this.lookDownNose();
-                    }
+                if (this.recentDistance < 100) {    
+                    this.lookDownNose();
                 } else {
                     // When outside the mesh, calculate the point where camera's line of sight is closest to mesh center
                     const camera = this.viewer.scene.getActiveCamera();
