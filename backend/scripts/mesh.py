@@ -99,23 +99,36 @@ def calculate_point_density(points, radius=0.1, num_threads=4):
     
     return combined_densities
 
-@cache(ignore=['NUM_THREADS'])
+@cache(ignore=['NUM_THREADS', 'overwrite'])
 def WriteFieldMeshes(
     MIN_POINTS_MESH = 40_000,
     ALPHA = 3,
     MIN_DENSITY = 50,  # Minimum number of points that must be within radius for a point to be included
-    NUM_THREADS = 4  # Number of threads for parallel processing
+    NUM_THREADS = 4,  # Number of threads for parallel processing
+    overwrite = True
 ):
+    from . import pointclouds
+
     fnames = GetFieldNames()
     points_per_subfield = FieldNameToPoints()
 
     outd = DATA_FOLDER / 'static' / 'field_meshes'
     outd.mkdir(exist_ok=True)
 
-    fields = []
-    for fid in sorted(points_per_subfield, key=lambda x:-len(points_per_subfield[x])):
+    most_populous = sorted(points_per_subfield, key=lambda x:-len(points_per_subfield[x]))
+    above_threshold = [x for x in most_populous if len(points_per_subfield[x]) >= MIN_POINTS_MESH]
+
+    # bring in all the pointcloud fields
+    field_colors, field_orders = pointclouds.ProduceFieldPointClouds()
+    pointcloud_fields = list(field_colors.keys()) + [y for x in field_colors.values() for y in x.keys()]
+
+    to_mesh = list( set(above_threshold) | set(pointcloud_fields) )
+
+    for fid in to_mesh:
         points = points_per_subfield[fid]
-        if len(points) < MIN_POINTS_MESH:
+
+        outfn = outd / f"{fnames[fid]}.stl"
+        if not overwrite and outfn.exists():
             continue
             
         print('processing', fnames[fid], len(points_per_subfield[fid]), 'papers')
@@ -136,12 +149,10 @@ def WriteFieldMeshes(
         # Generate mesh from dense points
         hull = alphashape.alphashape(dense_points, ALPHA)
 
-        with open(outd / f"{fnames[fid]}.stl", 'wb') as outf:
+        with open(outfn, 'wb') as outf:
             outf.write(trimesh.exchange.export.export_stl(hull))
-            
-        fields.append(fnames[fid])
 
-    return fields
+    return to_mesh
 
 def calculate_camera_position(mesh, center, global_center, fov_degrees=60, scale=100):
     """Calculate optimal camera position to view the entire mesh, always looking toward global center.
@@ -229,6 +240,9 @@ def calculate_true_center(mesh, num_samples=25):
     """
     # Get mesh bounds
     bounds = mesh.bounds
+    if mesh.bounds is None:
+        return None
+    
     min_bound = bounds[0]
     max_bound = bounds[1]
     
@@ -278,6 +292,10 @@ def GetFieldCenters():
             mesh = trimesh.load(stl_file)
             field_name = stl_file.stem
             meshes[field_name] = mesh
+            if not hasattr(mesh, 'vertices'):
+                print(f"Mesh {field_name} has no vertices")
+                continue
+
             all_vertices.extend(mesh.vertices)
             pbar.set_postfix_str(f"loading {field_name}")
             pbar.update(1)
@@ -293,6 +311,10 @@ def GetFieldCenters():
             
             # Get the true center and adjust if somehow outside
             center = calculate_true_center(mesh)
+            if center is None:
+                print(f"Mesh {field_name} has no center")
+                continue
+            
             center = adjust_center_if_outside(mesh, center)
             center = (center * SCALE).tolist()
             
@@ -356,6 +378,6 @@ def WriteFullMesh(
     return "full"
 
 if __name__ == '__main__':
-    #WriteFieldMeshes.make(force=True)
+    WriteFieldMeshes.make(force=True, overwrite=False)
     GetFieldCenters.make(force=True)
     #WriteFullMesh.make(force=True)
