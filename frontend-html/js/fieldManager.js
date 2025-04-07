@@ -1,6 +1,7 @@
 import { getColor, hslToRgb, hslToHex } from './utils.js';
 import {STLLoader} from "/libs/three.js/loaders/STLLoader.js";
 import * as THREE from "/libs/three.js/build/three.module.js";
+import * as threeBvhCsg from "/libs/three-bvh-csg.js";
 
 THREE.Cache.enabled = true;
 
@@ -306,6 +307,159 @@ const CENTRAL_FIELDS = [
 ];
 
 /**
+ * Class to manage a constellation (single field or intersection of fields)
+ * @class
+ */
+class Constellation {
+    /**
+     * Creates a new Constellation instance
+     * @param {FieldManager} manager - The field manager instance
+     * @param {Object} options - Configuration options
+     * @param {string} options.name - The name of the constellation
+     * @param {THREE.Mesh} options.mesh - The mesh for this constellation
+     * @param {Array} options.color - RGB color array
+     * @param {boolean} options.isPinned - Whether this is a pinned constellation
+     * @param {Object} options.intersectionData - Data for intersection constellations
+     */
+    constructor(manager, options) {
+        this.manager = manager;
+        this.name = options.name;
+        this.mesh = options.mesh;
+        this.color = options.color;
+        this.isPinned = options.isPinned || false;
+        this.intersectionData = options.intersectionData || null;
+        
+        this.$legendItem = null;
+        this.createLegendItem();
+    }
+
+    /**
+     * Creates the legend item for this constellation
+     */
+    createLegendItem() {
+        const $item = $(`<div class='legend_item' data-field-name="${this.name}">`);
+
+        // Intersection elements (button and prompt)
+        let $intersectElements = $(); // Empty jQuery set
+        if (!this.intersectionData) {
+            const $intersectBtn = $(`<svg class="icon intersect-icon intersect-init-button" width="16" height="16" viewBox="0 0 24 24">
+                <circle cx="7" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="13" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M7,12 a7,7 0 0,1 6,0 a7,7 0 0,0 -6,0" fill="currentColor" fill-opacity="0.4"/>
+            </svg>`);
+            const $intersectPrompt = $("<span class='intersect-prompt' style='display: none;'>Select field to intersect with</span>"); // Hidden prompt
+            $intersectElements = $intersectElements.add($intersectBtn).add($intersectPrompt);
+        }
+
+        // Remove button
+        const $r_link = $("<div class='link'>X</div>");
+
+        const c_text = `rgb(${this.color[0]},${this.color[1]},${this.color[2]})`;
+
+        // Color swatch SVG
+        const $svg = $(`<svg class="color-swatch-svg" height="25" width="25" style="stroke:${c_text}; stroke-width:2px; fill:${c_text}; cursor: pointer;">
+            <polygon points="12.5,3 5,20 20,20" class="triangle" style="stroke: black; stroke-width: 1px;" />
+        </svg>`);
+
+        $item.append(
+            $svg,
+            $(`<span class='lab'>${this.name}</span>`)
+        );
+
+        if ($intersectElements.length > 0) {
+            $item.append($intersectElements);
+        }
+        $item.append($r_link); // Append remove link last
+
+        this.$legendItem = $item;
+        return $item;
+    }
+
+    /**
+     * Handles the intersection button click (Updates UI state)
+     */
+    handleIntersectionClick() {
+        // If we're already in intersection mode, ignore
+        if (this.manager.intersectionMode) return;
+
+        // Enter intersection mode (manager state)
+        this.manager.intersectionMode = {
+            firstField: this.name,
+            firstMesh: this.mesh,
+            firstConstellation: this // Store reference to the first constellation
+        };
+
+        // Update UI for this specific item
+        this.$legendItem.find('.intersect-init-button').hide();
+        this.$legendItem.find('.intersect-prompt').show();
+        this.$legendItem.addClass("intersect-origin"); // Mark this as the origin
+
+        // Update global UI state (manager handles this visually)
+        this.manager.updateIntersectionVisualState();
+    }
+
+    /**
+     * Changes the color of this constellation
+     */
+    changeColor() {
+        const newColor = this.manager.getRandomColor();
+        const newColorText = `rgb(${newColor.rgb[0]},${newColor.rgb[1]},${newColor.rgb[2]})`;
+
+        // Update SVG color using the class selector
+        const $svg = this.$legendItem.find('.color-swatch-svg');
+        $svg.attr('style', `stroke:${newColorText}; stroke-width:2px; fill:${newColorText}; cursor: pointer;`);
+        $svg.find('polygon').attr('style', 'stroke: black; stroke-width: 1px;');
+
+        // Update mesh color
+        this.mesh.material.color.setHex(newColor.hex);
+        this.color = newColor.rgb;
+
+        // Only update annotation color if this is the currently selected field
+        if (this.name === this.manager.selectedFieldName) {
+            this.manager.updateAnnotationColor(this.name, newColorText);
+        }
+    }
+
+    /**
+     * Removes this constellation from the scene and legend
+     */
+    remove() {
+        // Remove from constellations map
+        this.manager.constellations.delete(this.name);
+        
+        // Always remove the mesh from the scene
+        window.viewer.viewer.scene.scene.remove(this.mesh);
+        
+        if (this.isPinned) {
+            // If pinned, remove the pin
+            this.manager.pinnedConstellations.delete(this.name);
+            // Update pin icon if visible
+            $(`.annotation-buttons .pin-icon[data-field='${this.name}']`).removeClass('pinned');
+        } else if (this.manager.selectedFieldName === this.name) {
+             // If it was the currently selected (non-pinned) annotation, clear selection state
+            this.manager.updateAnnotationColor(this.name, 'white');
+            this.manager.selectedFieldName = null;
+            this.manager.currentAnnotationConstellation = null; // Should already be null if not pinned, but belt-and-suspenders
+        }
+        
+        // Remove legend item
+        this.$legendItem.remove();
+        
+        // Check if this was the last constellation and restore brightness if so
+        if (this.manager.constellations.size === 0 &&
+            !this.manager.selectedFieldName &&
+            !this.manager.currentAnnotationConstellation) {
+            this.manager.resetSceneBrightness();
+        }
+
+        // If removing the first field during intersection mode, cancel it
+        if (this.manager.intersectionMode && this.manager.intersectionMode.firstField === this.name) {
+             this.manager.resetIntersectionMode();
+        }
+    }
+}
+
+/**
  * Main class for managing fields and their interactions
  * @class
  */
@@ -327,6 +481,8 @@ export class FieldManager {
         this.pinnedConstellations = new Map(); // Initialize pinned constellations map
         this.activeField = null; // Track current active field instead of using currentFilter
         this.fieldInstances = new Map(); // Store Field instances
+        this.constellations = new Map(); // Store Constellation instances
+        this.intersectionMode = null; // Store { firstField, firstMesh, firstConstellation }
     }
 
     /**
@@ -354,8 +510,6 @@ export class FieldManager {
                     ));
                 }
 
-                console.log(this.fieldInstances);
-
                 resolve(data);
             }).fail(reject);
         });
@@ -368,11 +522,12 @@ export class FieldManager {
         $("#constellations-tab #field_lookup").autocomplete({
             source: (request, response) => {
                 // Filter and sort matches
-                const matches = this.fields.filter(field => 
+                const matches = Object.keys(this.field_centers).filter(field => 
                     field.toLowerCase().includes(request.term.toLowerCase())
                 );
                 
-                // Return only top 10 matches
+                // Return only top 10 matches, sorted by lenth ascending
+                matches.sort((a, b) => a.length - b.length);
                 response(matches.slice(0, 10));
             },
             minLength: 2
@@ -430,44 +585,379 @@ export class FieldManager {
         });
     }
 
+
+    /**
+     * Creates an intersection mesh from two input meshes
+     * @param {THREE.Mesh} mesh1 - First mesh
+     * @param {THREE.Mesh} mesh2 - Second mesh
+     * @returns {THREE.Mesh} Intersection mesh
+     */
+    createIntersectionMesh(mesh1, mesh2) {
+        try {
+            // Validate inputs
+            if (!mesh1 || !mesh2) {
+                console.error('Invalid meshes provided:', { mesh1, mesh2 });
+                throw new Error('Both meshes must be provided');
+            }
+
+            if (!mesh1.geometry || !mesh2.geometry) {
+                console.error('Meshes must have geometry:', {
+                    mesh1Geometry: mesh1.geometry,
+                    mesh2Geometry: mesh2.geometry
+                });
+                throw new Error('Both meshes must have geometry');
+            }
+
+            // Add the missing getInterpolation method to THREE.Triangle if it doesn't exist
+            if (!THREE.Triangle.getInterpolation) {
+                THREE.Triangle.getInterpolation = function(point, p1, p2, p3, v1, v2, v3, target) {
+                    // Basic barycentric interpolation
+                    // Create temporary vectors
+                    const _v0 = new THREE.Vector3();
+                    const _v1 = new THREE.Vector3();
+                    const _v2 = new THREE.Vector3();
+
+                    // Calculate barycentric coordinates
+                    _v0.subVectors(p3, p1);
+                    _v1.subVectors(p2, p1);
+                    _v2.subVectors(point, p1);
+
+                    const d00 = _v0.dot(_v0);
+                    const d01 = _v0.dot(_v1);
+                    const d11 = _v1.dot(_v1);
+                    const d20 = _v2.dot(_v0);
+                    const d21 = _v2.dot(_v1);
+
+                    const denom = d00 * d11 - d01 * d01;
+
+                    // Calculate barycentric coordinates
+                    const v = (d11 * d20 - d01 * d21) / denom;
+                    const w = (d00 * d21 - d01 * d20) / denom;
+                    const u = 1.0 - v - w;
+
+                    // Interpolate values
+                    if (target.isVector2) {
+                        target.set(
+                            u * v1.x + v * v2.x + w * v3.x,
+                            u * v1.y + v * v2.y + w * v3.y
+                        );
+                    } else if (target.isVector3) {
+                        target.set(
+                            u * v1.x + v * v2.x + w * v3.x,
+                            u * v1.y + v * v2.y + w * v3.y,
+                            u * v1.z + v * v2.z + w * v3.z
+                        );
+                    }
+
+                    return target;
+                };
+            }
+
+            // Ensure all required attributes exist with proper formats
+            const prepareGeometry = (mesh) => {
+                const geometry = mesh.geometry;
+                
+                // Make sure the position attribute exists
+                if (!geometry.attributes.position) {
+                    throw new Error('Geometry must have position attribute');
+                }
+                
+                // Make sure the normal attribute exists
+                if (!geometry.attributes.normal) {
+                    geometry.computeVertexNormals();
+                }
+                
+                // Make sure the uv attribute exists
+                if (!geometry.attributes.uv) {
+                    const count = geometry.attributes.position.count;
+                    const uvArray = new Float32Array(count * 2);
+                    // Create simple UV mapping (just to make the attribute exist)
+                    for (let i = 0; i < count; i++) {
+                        const x = geometry.attributes.position.getX(i);
+                        const y = geometry.attributes.position.getY(i);
+                        // Map position.xy to uv coordinates (simple projection)
+                        uvArray[i * 2] = (x + 1) / 2;      // Map -1 to 1 range to 0 to 1
+                        uvArray[i * 2 + 1] = (y + 1) / 2;  // Map -1 to 1 range to 0 to 1
+                    }
+                    geometry.setAttribute('uv', new THREE.BufferAttribute(uvArray, 2));
+                }
+                
+                // Ensure geometry is indexed
+                if (!geometry.index) {
+                    const count = geometry.attributes.position.count;
+                    const indices = new Uint32Array(count);
+                    for (let i = 0; i < count; i++) {
+                        indices[i] = i;
+                    }
+                    geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+                }
+                
+                return geometry;
+            };
+            
+            // Prepare both geometries
+            prepareGeometry(mesh1);
+            prepareGeometry(mesh2);
+            
+            try {
+                // Create evaluator
+                const evaluator = new threeBvhCsg.Evaluator();
+                
+                // Create brushes from prepared geometries
+                const brush1 = new threeBvhCsg.Brush(mesh1.geometry.clone(), mesh1.material);
+                const brush2 = new threeBvhCsg.Brush(mesh2.geometry.clone(), mesh2.material);
+                
+                // Copy transformation matrices
+                brush1.matrix.copy(mesh1.matrix);
+                brush2.matrix.copy(mesh2.matrix);
+                
+                // Update matrix world
+                brush1.updateMatrixWorld();
+                brush2.updateMatrixWorld();
+                
+                // Perform intersection
+                const result = evaluator.evaluate(brush1, brush2, threeBvhCsg.INTERSECTION);
+                
+                if (!result) {
+                    console.error('Intersection operation returned null');
+                    throw new Error('Intersection operation failed');
+                }
+                
+                // Debug intersection geometry
+                if (result.geometry) {
+                    // Calculate volume information if possible
+                    if (result.geometry.attributes.position && result.geometry.index) {
+                        const positions = result.geometry.attributes.position.array;
+                        let minX = Infinity, maxX = -Infinity;
+                        let minY = Infinity, maxY = -Infinity;
+                        let minZ = Infinity, maxZ = -Infinity;
+                        
+                        for (let i = 0; i < positions.length; i += 3) {
+                            const x = positions[i];
+                            const y = positions[i + 1];
+                            const z = positions[i + 2];
+                            
+                            minX = Math.min(minX, x);
+                            maxX = Math.max(maxX, x);
+                            minY = Math.min(minY, y);
+                            maxY = Math.max(maxY, y);
+                            minZ = Math.min(minZ, z);
+                            maxZ = Math.max(maxZ, z);
+                        }
+                        
+                    }
+                } else {
+                    console.log('No geometry in result');
+                }
+                
+                // Create material for the intersection
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xFFFFFF, // White base color
+                    wireframe: false, // Solid instead of wireframe
+                    transparent: true,
+                    opacity: 0.4, // More transparent
+                    side: THREE.DoubleSide // Render both sides
+                });
+                
+                // Apply material to the result
+                result.material = material;
+                
+                // Make sure the scale is 100
+                result.scale.set(100, 100, 100);
+                
+                return result;
+            } catch (error) {
+                console.error('Error creating intersection mesh:', error);
+                // Return a fallback mesh if intersection fails
+                const geometry = new THREE.BoxGeometry(1, 1, 1);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xFFFFFF,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.4
+                });
+                return new THREE.Mesh(geometry, material);
+            }
+        } catch (error) {
+            console.error('Error creating intersection mesh:', error);
+            // Return a fallback mesh if intersection fails
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0xFFFFFF,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.4
+            });
+            return new THREE.Mesh(geometry, material);
+        }
+    }
+
+    /**
+     * Creates an intersection constellation from two constellations
+     * @param {Constellation} constellation1 - First constellation
+     * @param {Constellation} constellation2 - Second constellation
+     */
+    createIntersectionConstellation(constellation1, constellation2) {
+        // Check if this intersection already exists
+        const intersectionName = `${constellation1.name} ∩ ${constellation2.name}`;
+        const reverseName = `${constellation2.name} ∩ ${constellation1.name}`;
+        
+        if (this.constellations.has(intersectionName) || this.constellations.has(reverseName)) {
+            console.log('Intersection already exists:', intersectionName);
+            return; // Avoid creating duplicates
+        }
+        
+        console.log(`Creating intersection: ${intersectionName}`); // Debug log
+
+        // Create intersection mesh
+        const intersectionMesh = this.createIntersectionMesh(
+            constellation1.mesh,
+            constellation2.mesh
+        );
+        
+        if (!intersectionMesh) {
+            console.error("Intersection mesh creation failed.");
+            // Optionally provide user feedback here
+            return;
+        }
+        
+        // Add to scene
+        window.viewer.viewer.scene.scene.add(intersectionMesh);
+        
+        // Create intersection constellation
+        const intersectionInfo = {
+            name: intersectionName,
+            mesh: intersectionMesh,
+            color: this.getRandomColor().rgb, // Use getRandomColor() for consistency
+            intersectionData: {
+                field1: constellation1.name,
+                field2: constellation2.name,
+                originalMeshes: [constellation1.mesh, constellation2.mesh]
+            }
+        };
+        
+        const intersectionConstellation = this.createConstellation(intersectionInfo);
+        $("#const_legend").append(intersectionConstellation.$legendItem); // Append the new item
+    }
+
+    /**
+     * Sets up event listeners for the constellation legend using delegation.
+     */
+    setupConstellationInteractions() {
+        const $constLegend = $("#const_legend");
+
+        $constLegend.on('click', (e) => {
+            const $target = $(e.target);
+            const $legendItem = $target.closest('.legend_item');
+
+            if (!$legendItem.length) return; // Clicked outside a legend item
+
+            const fieldName = $legendItem.data('field-name');
+            const constellation = this.getConstellationByName(fieldName);
+
+            if (!constellation) {
+                console.warn("Constellation not found for item:", fieldName);
+                return;
+            }
+
+            // Handle Intersection Initiation
+            if ($target.closest('.intersect-init-button').length) {
+                constellation.handleIntersectionClick();
+            }
+            // Handle Intersection Selection
+            else if ($legendItem.hasClass('highlight')) { // Check if clicking a highlighted item
+                 if (this.intersectionMode && fieldName !== this.intersectionMode.firstField) {
+                     const secondConstellation = constellation; // The clicked one is the second
+                     const firstConstellation = this.intersectionMode.firstConstellation;
+
+                     if (firstConstellation && secondConstellation) {
+                         this.createIntersectionConstellation(firstConstellation, secondConstellation);
+                     }
+                     this.resetIntersectionMode();
+                 } else if (this.intersectionMode && fieldName === this.intersectionMode.firstField) {
+                     // Clicking the originating field cancels intersection mode
+                     this.resetIntersectionMode();
+                 }
+            }
+            // Handle Remove Click
+            else if ($target.closest('.link').length) {
+                 constellation.remove();
+                 // Note: remove() handles cancelling intersection if needed
+            }
+            // Handle Color Change Click
+            else if ($target.closest('.color-swatch-svg').length) {
+                 constellation.changeColor();
+            }
+        });
+
+         // Add hover effects using delegation if desired (optional)
+        $constLegend.on('mouseenter', '.legend_item.highlight', function() {
+            $(this).addClass('hover');
+        });
+        $constLegend.on('mouseleave', '.legend_item.highlight', function() {
+            $(this).removeClass('hover');
+        });
+    }
+
+    /**
+      * Updates the visual state of legend items during intersection mode.
+      */
+    updateIntersectionVisualState() {
+        if (!this.intersectionMode) return; // Should not happen, but safety first
+
+        const firstItemName = this.intersectionMode.firstField;
+        const $constLegend = $("#const_legend");
+
+        $constLegend.find(".legend_item").each((_, item) => {
+             const $item = $(item);
+             const itemName = $item.data('field-name');
+             const constellation = this.getConstellationByName(itemName);
+
+             // Skip intersection constellations or the origin item for highlighting
+             if (constellation && !constellation.intersectionData && itemName !== firstItemName) {
+                 $item.addClass("intersectable highlight");
+                 $item.find(".intersect-init-button").hide(); // Hide other intersection buttons
+             } else {
+                 $item.removeClass("intersectable highlight");
+                 if (itemName !== firstItemName) { // Ensure origin item's button remains hidden
+                    $item.find(".intersect-init-button").show();
+                    $item.find(".intersect-prompt").hide();
+                 }
+             }
+         });
+    }
+
+    /**
+     * Resets the intersection mode state
+     */
+    resetIntersectionMode() {
+        const $constLegend = $("#const_legend");
+
+        // Reset visual state for all items
+        $constLegend.find(".legend_item").removeClass("intersectable highlight hover intersect-origin");
+        $constLegend.find(".intersect-init-button").show();
+        $constLegend.find(".intersect-prompt").hide();
+
+        this.intersectionMode = null; // Clear the state
+    }
+
     /**
      * Sets up constellation add functionality
      */
     setupConstellationAdd() {
         $("#constellations-tab #field_add").click(() => {
             const field = $("#field_lookup").val();
-            this.visualizeFieldMesh(field, (ret) => {
-                const c = ret.color;
-                
-                const $item = $("<div class='legend_item'>");
-                
-                const $r_link = $("<div class='link'>remove</div>").click(() => {
-                    window.viewer.viewer.scene.scene.remove(ret.mesh);
-                    $item.remove();
-                });
-
-                const c_text = `rgb(${c[0]},${c[1]},${c[2]})`;
-                
-                const $svg = $(`<svg height="25" width="25" style="stroke:${c_text}; stroke-width:2px; fill:${c_text}; cursor: pointer;">
-                    <polygon points="12.5,3 5,20 20,20" class="triangle" style="stroke: black; stroke-width: 1px;" />
-                </svg>`);
-
-                // Add click handler to change color
-                $svg.click(() => {
-                    const newColor = this.getRandomColor();
-                    const newColorText = `rgb(${newColor.rgb[0]},${newColor.rgb[1]},${newColor.rgb[2]})`;
-                    $svg.attr('style', `stroke:${newColorText}; stroke-width:2px; fill:${newColorText}; cursor: pointer;`);
-                    ret.mesh.material.color.setHex(newColor.hex);
-                    this.updateAnnotationColor(ret.name, newColorText);
-                });
-                
-                $item.append(
-                    $svg,
-                    $(`<span class='lab'>${ret.name}</span>`),
-                    $r_link
-                );
-                
-                $("#const_legend").append($item);
+            this.createFieldMesh(field, {
+                isPinned: true,
+                onLoad: (ret) => {
+                    const constellation = this.createConstellation({
+                        name: field,
+                        mesh: ret.mesh,
+                        color: ret.color,
+                        isPinned: true
+                    });
+                    $("#const_legend").append(constellation.$legendItem);
+                }
             });
         });
     }
@@ -478,11 +968,73 @@ export class FieldManager {
     adjustSceneBrightness() {  // Renamed from dimOverallScene
         const X = {op: window.viewer.viewer.edlOpacity};
         new TWEEN.Tween(X)
-            .to({op: 0.8}, 500)
+            .to({op: 0.7}, 500)
             .onUpdate(() => {
                 window.viewer.viewer.setEDLOpacity(X.op);
             })
             .start();
+    }
+
+    /**
+     * Restores the scene brightness by setting EDL opacity back to 1.0
+     */
+    resetSceneBrightness() {
+        const X = {op: window.viewer.viewer.edlOpacity};
+        new TWEEN.Tween(X)
+            .to({op: 1.0}, 500)
+            .onUpdate(() => {
+                window.viewer.viewer.setEDLOpacity(X.op);
+            })
+            .start();
+    }
+
+    /**
+     * Creates and loads a 3D mesh for a field
+     * @param {string} fieldName - The field name to load
+     * @param {Object} options - Configuration options
+     * @param {Object} options.color - Color object with rgb and hex values
+     * @param {boolean} options.isPinned - Whether this is a pinned constellation
+     * @param {Function} options.onLoad - Callback when mesh is loaded
+     * @param {Function} options.onError - Callback when loading fails
+     * @returns {Object} Object containing the mesh and color info
+     */
+    createFieldMesh(fieldName, options = {}) {
+        const {
+            color = this.getRandomColor(),
+            isPinned = false,
+            onLoad = () => {},
+            onError = (error) => console.error('Error loading field mesh:', error)
+        } = options;
+
+        const material = new THREE.MeshBasicMaterial({
+            color: color.hex,
+            wireframe: true,
+            wireframeLinewidth: isPinned ? 8 : 10,
+            transparent: true,
+            opacity: isPinned ? 1.0 : 0.8
+        });
+
+        const loader = new STLLoader();
+        loader.load(
+            `/data/field_meshes/${fieldName}.stl`,
+            (geometry) => {
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.scale.set(100, 100, 100);
+                window.viewer.viewer.scene.scene.add(mesh);
+                
+                const ret = {
+                    mesh: mesh,
+                    color: color.rgb,
+                    name: fieldName
+                };
+                
+                this.adjustSceneBrightness();
+                
+                onLoad(ret);
+            },
+            undefined,
+            onError
+        );
     }
 
     /**
@@ -491,37 +1043,11 @@ export class FieldManager {
      * @param {Function} callback - Callback function when visualization is complete
      */
     visualizeFieldMesh(which, callback, color) {
-        const my_color = color ? color : this.getRandomColor();
-
-        const material = new THREE.MeshBasicMaterial({
-            color: my_color.hex,
-            wireframe: true,
-            wireframeLinewidth: 8,
+        this.createFieldMesh(which, {
+            color: color,
+            isPinned: true,
+            onLoad: callback
         });
-
-        const loader = new STLLoader();
-        loader.load(
-            `/data/field_meshes/${which}.stl`,
-            (geometry) => {
-                const mesh = new THREE.Mesh(geometry, material);
-                mesh.scale.set(100, 100, 100);
-                material.transparent = true;
-                window.viewer.viewer.scene.scene.add(mesh);
-                
-                const ret = {
-                    mesh: mesh,
-                    color: my_color.rgb,
-                    name: which
-                };
-                
-                this.adjustSceneBrightness();
-                callback(ret);
-            },
-            (xhr) => {
-            },
-            (error) => {
-            }
-        );
     }
 
     /**
@@ -531,11 +1057,14 @@ export class FieldManager {
      */
     updateAnnotationColor(fieldName, color) {
         // Find the annotation for this field and update its color
-        window.viewer.viewer.scene.annotations.children.forEach(annotation => {
-            if (annotation.title === fieldName) {
-                annotation.domElement.find('.annotation-label').css('color', color);
-            }
-        });
+        // Only update if this is the currently selected field name
+        if (fieldName === this.selectedFieldName) {
+            window.viewer.viewer.scene.annotations.children.forEach(annotation => {
+                if (annotation.title === fieldName) {
+                    annotation.domElement.find('.annotation-label').css('color', color);
+                }
+            });
+        }
     }
 
     /**
@@ -634,6 +1163,148 @@ export class FieldManager {
     }
 
     /**
+     * Handles click events on annotations
+     * @param {string} fieldName - The field name
+     */
+    handleAnnotationClick(fieldName, fieldData) {
+        // If clicking the same field again, deselect it
+        if (this.selectedFieldName === fieldName) {
+            // Find the constellation associated with the annotation click
+            const constellationToRemove = this.getConstellationByName(fieldName);
+            
+            if (constellationToRemove) {
+                // Only remove if not pinned
+                if (!constellationToRemove.isPinned) {
+                    constellationToRemove.remove(); // Use the constellation's remove method
+                }
+                // Note: The remove method handles resetting brightness if necessary
+            }
+            
+            // Reset annotation color to white and clear selected state
+            window.viewer.viewer.scene.annotations.children.forEach(annotation => {
+                if (annotation.title === fieldName) {
+                    annotation.domElement.removeClass('selected-annotation');
+                    annotation.domElement.find('.annotation-label').css('color', 'white');
+                }
+            });
+            
+            this.selectedFieldName = null;
+            this.currentAnnotationConstellation = null; // Ensure this is cleared
+            
+            // Remove buttons from all annotations
+            $('.annotation-buttons').remove();
+            return;
+        }
+
+        // Otherwise, we need to move the camera
+        let {endTarget, endPosition} = fieldData;
+        
+        endTarget = new THREE.Vector3().fromArray(endTarget);
+        endPosition = new THREE.Vector3().fromArray(endPosition);
+
+        let scene = window.viewer.viewer.scene;
+        Potree.Utils.moveTo(scene, endPosition, endTarget);
+
+        // And once that 500ms tween is done, we need to update lookAt
+        setTimeout(() => {
+            window.viewer.viewer.scene.view.lookAt(endTarget.x, endTarget.y, endTarget.z);
+        }, 500);
+
+        // Store the current timestamp
+        const clickTime = Date.now();
+        this.lastClickTime = clickTime;
+
+        // Reset previous selection's color and remove class
+        if (this.selectedFieldName) {
+            window.viewer.viewer.scene.annotations.children.forEach(annotation => {
+                if (annotation.title === this.selectedFieldName) {
+                    annotation.domElement.removeClass('selected-annotation');
+                    annotation.domElement.find('.annotation-label').css('color', 'white');
+                }
+            });
+            
+            // Remove previous temporary constellation if it exists and is not pinned
+            const previousConstellation = this.getConstellationByName(this.selectedFieldName);
+            if (previousConstellation && !previousConstellation.isPinned) {
+                previousConstellation.remove(); // Use the remove method here too
+            }
+            // No need to manually handle currentAnnotationConstellation, the remove() call does it
+        }
+
+        // Remove buttons from all annotations
+        $('.annotation-buttons').remove();
+
+        // Get a random color like constellations do
+        const my_color = this.getRandomColor();
+
+        // Update the selected field
+        this.selectedFieldName = fieldName;
+
+        // Set z-index to highest for the selected annotation and update its color
+        window.viewer.viewer.scene.annotations.children.forEach(annotation => {
+            if (annotation.title === fieldName) {
+                annotation.domElement.addClass('selected-annotation');
+                annotation.domElement.find('.annotation-label').css('color', `rgb(${my_color.rgb[0]},${my_color.rgb[1]},${my_color.rgb[2]})`);
+                // Add buttons to this annotation
+                this.addAnnotationButtons(annotation, fieldName, my_color);
+            }
+        });
+
+        // If the field is already pinned, use the existing constellation
+        if (this.pinnedConstellations.has(fieldName)) {
+            const existingConstellation = this.getConstellationByName(fieldName);
+            if (existingConstellation) {
+                // Update the color if needed
+                if (existingConstellation.color[0] !== my_color.rgb[0] || 
+                    existingConstellation.color[1] !== my_color.rgb[1] || 
+                    existingConstellation.color[2] !== my_color.rgb[2]) {
+                    existingConstellation.color = my_color.rgb;
+                    existingConstellation.mesh.material.color.setHex(my_color.hex);
+                    const colorText = `rgb(${my_color.rgb[0]},${my_color.rgb[1]},${my_color.rgb[2]})`;
+                    const $svg = existingConstellation.$legendItem.find('svg');
+                    $svg.attr('style', `stroke:${colorText}; stroke-width:2px; fill:${colorText}; cursor: pointer;`);
+                }
+                return; // No need to create a new mesh
+            }
+        }
+
+        // Create the mesh with the consolidated method for non-pinned fields
+        this.createFieldMesh(fieldName, {
+            color: my_color,
+            onLoad: (ret) => {
+                // Only proceed if this is still the most recent click
+                if (clickTime === this.lastClickTime) {
+                    // Check if a constellation for this field already exists (e.g., from pinning)
+                    let constellation = this.getConstellationByName(fieldName);
+                    
+                    if (!constellation) {
+                        // Create a new constellation if it doesn't exist
+                        constellation = this.createConstellation({
+                            name: fieldName,
+                            mesh: ret.mesh,
+                            color: ret.color
+                        });
+                        $("#const_legend").append(constellation.$legendItem);
+                    } else {
+                        // If it exists but the mesh is different (e.g., re-created), update it
+                        if (constellation.mesh !== ret.mesh) {
+                            window.viewer.viewer.scene.scene.remove(constellation.mesh); // Remove old mesh
+                            constellation.mesh = ret.mesh;
+                        }
+                        // Ensure the legend item is visible if it was somehow hidden
+                        if (!constellation.$legendItem.parent().length) {
+                             $("#const_legend").append(constellation.$legendItem);
+                        }
+                    }
+                    
+                    // Store the mesh associated with the current annotation click
+                    this.currentAnnotationConstellation = constellation.mesh; 
+                }
+            }
+        });
+    }
+
+    /**
      * Adds action buttons to an annotation
      * @param {Object} annotation - The annotation object
      * @param {string} fieldName - The field name
@@ -642,7 +1313,7 @@ export class FieldManager {
     addAnnotationButtons(annotation, fieldName, color) {
         const $label = annotation.domElement.find('.annotation-label');
         
-        // Create action buttons container
+        // Add action buttons container
         const $actionButtons = $("<div class='annotation-buttons'>");
 
         // Understand whether this is in the field hierarchy
@@ -692,14 +1363,48 @@ export class FieldManager {
         
         $pinIcon.click(() => {
             if (!this.pinnedConstellations.has(fieldName)) {
-                this.visualizeFieldMesh(fieldName, (ret) => {        
-                    this.pinnedConstellations.set(fieldName, ret);
+                // Check if we already have a constellation for this field
+                const existingConstellation = this.getConstellationByName(fieldName);
+                
+                if (existingConstellation) {
+                    // If we have an existing constellation, just update it to be pinned
+                    existingConstellation.isPinned = true;
+                    this.pinnedConstellations.set(fieldName, {
+                        mesh: existingConstellation.mesh,
+                        color: existingConstellation.color
+                    });
                     $pinIcon.addClass('pinned');
-                }, color);
+                } else {
+                    // If no existing constellation, create a new one
+                    this.createFieldMesh(fieldName, {
+                        color: color,
+                        isPinned: true,
+                        onLoad: (ret) => {        
+                            // Create the constellation
+                            const constellation = this.createConstellation({
+                                name: fieldName,
+                                mesh: ret.mesh,
+                                color: ret.color,
+                                isPinned: true
+                            });
+                            
+                            // Add to pinned constellations
+                            this.pinnedConstellations.set(fieldName, ret);
+                            $pinIcon.addClass('pinned');
+                            
+                            // Add to legend if not already there
+                            if (!$(`#const_legend .legend_item:has(span:contains('${fieldName}'))`).length) {
+                                $("#const_legend").append(constellation.$legendItem);
+                            }
+                        }
+                    });
+                }
             } else {
                 // Remove pinned constellation
-                const pinned = this.pinnedConstellations.get(fieldName);
-                window.viewer.viewer.scene.scene.remove(pinned.mesh);
+                const constellation = this.getConstellationByName(fieldName);
+                if (constellation) {
+                    constellation.remove();
+                }
                 this.pinnedConstellations.delete(fieldName);
                 $pinIcon.removeClass('pinned');
             }
@@ -707,164 +1412,6 @@ export class FieldManager {
         
         $actionButtons.append($pinIcon);
         $label.after($actionButtons);
-    }
-
-    /**
-     * Handles click events on annotations
-     * @param {string} fieldName - The field name
-     */
-    handleAnnotationClick(fieldName, fieldData) {
-        // If clicking the same field again, deselect it
-        if (this.selectedFieldName === fieldName) {
-            if (this.currentAnnotationConstellation) {
-                window.viewer.viewer.scene.scene.remove(this.currentAnnotationConstellation);
-                this.currentAnnotationConstellation = null;
-                // Remove from legend if not pinned
-                if (!this.pinnedConstellations.has(fieldName)) {
-                    $(`#const_legend .legend_item:has(span:contains('${fieldName}'))`).remove();
-                }
-            }
-            this.updateAnnotationColor(fieldName, 'white'); // Reset color
-            this.selectedFieldName = null;
-            // Remove buttons from all annotations
-            $('.annotation-buttons').remove();
-            return;
-        }
-
-        // Otherwise, we need to move the camera
-		let {endTarget, endPosition} = fieldData;
-        
-        endTarget = new THREE.Vector3().fromArray(endTarget);
-        endPosition = new THREE.Vector3().fromArray(endPosition);
-
-        let scene = window.viewer.viewer.scene;
-        Potree.Utils.moveTo(scene, endPosition, endTarget);
-
-        // And once that 500ms tween is done, we need to update lookAt
-        setTimeout(() => {
-            window.viewer.viewer.scene.view.lookAt(endTarget.x, endTarget.y, endTarget.z);
-        }, 500);
-
-        // Store the current timestamp
-        const clickTime = Date.now();
-        this.lastClickTime = clickTime;
-
-        // Reset previous selection's color if exists
-        if (this.selectedFieldName) {
-            this.updateAnnotationColor(this.selectedFieldName, 'white');
-            // Remove previous field from legend if not pinned
-            if (!this.pinnedConstellations.has(this.selectedFieldName)) {
-                $(`#const_legend .legend_item:has(span:contains('${this.selectedFieldName}'))`).remove();
-            }
-        }
-
-        // Remove previous annotation constellation if it exists
-        if (this.currentAnnotationConstellation) {
-            window.viewer.viewer.scene.scene.remove(this.currentAnnotationConstellation);
-            this.currentAnnotationConstellation = null;
-        }
-
-        // Remove buttons from all annotations
-        $('.annotation-buttons').remove();
-
-        // Get a random color like constellations do
-        const my_color = this.getRandomColor();
-
-        // Update the selected field and its color
-        this.selectedFieldName = fieldName;
-        this.updateAnnotationColor(fieldName, `rgb(${my_color.rgb[0]},${my_color.rgb[1]},${my_color.rgb[2]})`);
-
-        // Set z-index to highest for the selected annotation
-        window.viewer.viewer.scene.annotations.children.forEach(annotation => {
-            if (annotation.title === fieldName) {
-                annotation.domElement.addClass('selected-annotation');
-                // Add buttons to this annotation
-                this.addAnnotationButtons(annotation, fieldName, my_color);
-            } else {
-                annotation.domElement.removeClass('selected-annotation');
-            }
-        });
-
-        // IMPORTANT: We no longer automatically apply filtering when clicking an annotation
-        // Instead, we just show the constellation and update the UI
-
-        const material = new THREE.MeshBasicMaterial({
-            color: my_color.hex,
-            wireframe: true,
-            wireframeLinewidth: 10,
-            transparent: true,
-            opacity: 0.8
-        });
-
-        const loader = new STLLoader();
-        loader.load(
-            `/data/field_meshes/${fieldName}.stl`,
-            (geometry) => {
-                // Only proceed if this is still the most recent click
-                if (clickTime === this.lastClickTime) {
-                    const mesh = new THREE.Mesh(geometry, material);
-                    mesh.scale.set(100, 100, 100);
-                    window.viewer.viewer.scene.scene.add(mesh);
-                    this.currentAnnotationConstellation = mesh;
-                    this.adjustSceneBrightness();  // Add the scene dimming effect
-
-                    // Add to constellations legend if not already there
-                    if (!$(`#const_legend .legend_item:has(span:contains('${fieldName}'))`).length) {
-                        const $item = $("<div class='legend_item'>");
-                        const $r_link = $("<div class='link'>remove</div>").click(() => {
-                            if (this.pinnedConstellations.has(fieldName)) {
-                                // If pinned, just remove the pin
-                                const pinned = this.pinnedConstellations.get(fieldName);
-                                window.viewer.viewer.scene.scene.remove(pinned.mesh);
-                                this.pinnedConstellations.delete(fieldName);
-                                // Update pin icon if visible
-                                $(`.annotation-buttons .pin-icon[data-field='${fieldName}']`).removeClass('pinned');
-                            } else {
-                                // If not pinned, remove everything
-                                window.viewer.viewer.scene.scene.remove(mesh);
-                                this.updateAnnotationColor(fieldName, 'white');
-                                this.selectedFieldName = null;
-                                this.currentAnnotationConstellation = null;
-                            }
-                            $item.remove();
-                        });
-
-                        const c_text = `rgb(${my_color.rgb[0]},${my_color.rgb[1]},${my_color.rgb[2]})`;
-                        
-                        const $svg = $(`<svg height="25" width="25" style="stroke:${c_text}; stroke-width:2px; fill:${c_text}; cursor: pointer;">
-                            <polygon points="12.5,3 5,20 20,20" class="triangle" style="stroke: black; stroke-width: 1px;" />
-                        </svg>`);
-
-                        // Add click handler to change color
-                        $svg.click(() => {
-                            const newColor = this.getRandomColor();
-                            const newColorText = `rgb(${newColor.rgb[0]},${newColor.rgb[1]},${newColor.rgb[2]})`;
-                            $svg.attr('style', `stroke:${newColorText}; stroke-width:2px; fill:${newColorText}; cursor: pointer;`);
-                            mesh.material.color.setHex(newColor.hex);
-                            this.updateAnnotationColor(fieldName, newColorText);
-                            // Update pinned constellation color if exists
-                            if (this.pinnedConstellations.has(fieldName)) {
-                                const pinned = this.pinnedConstellations.get(fieldName);
-                                pinned.mesh.material.color.setHex(newColor.hex);
-                            }
-                        });
-                        
-                        $item.append(
-                            $svg,
-                            $(`<span class='lab'>${fieldName}</span>`),
-                            $r_link
-                        );
-                        
-                        $("#const_legend").append($item);
-                    }
-                }
-            },
-            (xhr) => {
-            },
-            (error) => {
-                console.error('Error loading field mesh:', error);
-            }
-        );
     }
 
     /**
@@ -1065,5 +1612,31 @@ export class FieldManager {
             requestAnimationFrame(updateLoop);
         };
         updateLoop();
+    }
+
+    /**
+     * Gets a constellation by name
+     * @param {string} name - The constellation name
+     * @returns {Constellation|null} The constellation or null if not found
+     */
+    getConstellationByName(name) {
+        return this.constellations.get(name);
+    }
+
+    /**
+     * Creates a new constellation
+     * @param {Object} options - Configuration options
+     * @returns {Constellation} The created constellation
+     */
+    createConstellation(options) {
+        // Remove any existing constellation with the same name
+        const existing = this.constellations.get(options.name);
+        if (existing) {
+            existing.remove();
+        }
+        
+        const constellation = new Constellation(this, options);
+        this.constellations.set(options.name, constellation);
+        return constellation;
     }
 } 

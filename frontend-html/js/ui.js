@@ -16,6 +16,7 @@ export class UIManager {
             this.fieldManager.setupFieldAutocomplete();
             this.fieldManager.setupLegend();
             this.fieldManager.setupConstellationAdd();
+            this.fieldManager.setupConstellationInteractions();
             this.fieldManager.addFieldAnnotations();
         } catch (error) {
             console.error('Failed to load fields:', error);

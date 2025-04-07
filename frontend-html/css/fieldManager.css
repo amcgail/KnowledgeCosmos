@@ -84,4 +84,53 @@
 
 .clear-selection.visible {
     opacity: 1;
+}
+
+.legend_item {
+    display: flex;
+    align-items: center;
+    padding: 5px;
+    margin: 2px 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.legend_item.intersectable {
+    cursor: pointer;
+}
+
+.legend_item.highlight {
+    background-color: rgba(255, 255, 0, 0.1);
+}
+
+.legend_item.hover {
+    background-color: rgba(255, 255, 0, 0.2);
+}
+
+.intersect-icon {
+    margin-left: 10px;
+    cursor: pointer;
+    fill: #666;
+    transition: fill 0.2s ease;
+}
+
+.intersect-icon:hover {
+    fill: #333;
+}
+
+.intersect-prompt {
+    margin-left: 10px;
+    color: #666;
+    font-style: italic;
+}
+
+.link {
+    margin-left: 10px;
+    color: #666;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.link:hover {
+    color: #333;
 } 
