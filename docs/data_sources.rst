@@ -3,86 +3,80 @@ Data Sources
 
 This project integrates with several data sources to create the 3D visualization of academic papers and fields.
 
+Input Data
+----------
+
 Microsoft Academic Graph (MAG)
-----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The Microsoft Academic Graph (MAG) data is used to provide information about academic papers and their fields of study.
+MAG data provides information about academic papers, fields of study, and their relationships.
 
-Data Files
-~~~~~~~~~
+**Required Files:**
 
-The following MAG data files are used:
+The processing pipeline requires the following MAG files, which should be placed within the `{DATA_FOLDER}/MAG/` directory:
 
-* ``FieldsOfStudy.csv.zip``: Contains information about academic fields
-* ``PaperFieldsOfStudy_*.csv.zip``: Contains paper-to-field mappings
-* ``FieldOfStudyChildren.csv.zip``: Contains field hierarchy information
+*   From [MAG 2019-01-25 Release](https://zenodo.org/records/2628216):
+    *   `Papers.txt.gz`: Used by `backend/scripts/MAG.py` primarily for publication year data.
+    *   `FieldsOfStudy.csv.zip`: Contains field names, levels, and paper counts. Used by `backend/scripts/fields.py`. (Note: The documentation for this zip on Zenodo mentions `FieldsOfStudy.txt` but the provided file is `.csv.zip`, which the code uses).
+    *   `FieldOfStudyChildren.csv.zip`: Contains parent-child relationships for the field hierarchy. Used by `backend/scripts/fields.py`.
+*   From [MAG 2021-01-19 RDF Release](https://zenodo.org/records/4617285) (Paper-Field Mappings):
+    *   `PaperFieldsOfStudy_*.csv.zip`: These files map paper IDs to field IDs. Used by `backend/scripts/fields.py`. (Note: The RDF release contains `16.PaperFieldsOfStudy.nt.bz2`, but the code specifically looks for `PaperFieldsOfStudy_*.csv.zip` files, potentially implying a preprocessing step or alternative source for these CSV-zipped files is expected. Please verify the required format.)
 
-Data Access
-~~~~~~~~~
+**Data Access:**
 
-The MAG data can be accessed from:
-* Fields of Study: https://zenodo.org/records/2628216
-* Paper-Field mappings: https://zenodo.org/records/4617285
+*   The links provided in the `README.md` point to the relevant Zenodo records for obtaining these files.
 
 SPECTER Paper Embeddings
-----------------------
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-SPECTER embeddings are used to create the 3D visualization of papers.
+Pre-computed SPECTER embeddings represent the semantic content of papers and are used to generate the 3D positions.
 
-Data Files
-~~~~~~~~~
+**Required Files:**
 
-The SPECTER vectors used in this project can be downloaded from:
-https://zenodo.org/records/4917086
+*   `paper_specter_*.pkl`: These files contain the high-dimensional SPECTER vectors for papers. They should be placed within the `{DATA_FOLDER}/vectors/` directory.
 
-The files are named ``paper_specter_{i}.pkl`` and take up approximately 54GB in total.
+**Data Access:**
 
-Model Information
-~~~~~~~~~~~~~~~
+*   These can be downloaded from [Zenodo record 4917086](https://zenodo.org/records/4917086).
+*   The `README.md` provides additional details about the SPECTER model version (original SPECTER, not SPECTER2) and potential download methods.
 
-* The SPECTER model is open source and available at: https://github.com/allenai/specter
-* A newer version (SPECTER2) was released in November 2023
-* The model can be used to generate embeddings for new papers
+PostgreSQL Database (Optional)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Point Cloud Data
---------------
+*   **Purpose**: Used *only* by the optional topic labeling feature (`backend/scripts/labels.py`) to fetch paper positions and metadata (`info_json` containing titles) for generating GPT-based labels.
+*   **Requirement**: If using this feature, a PostgreSQL database needs to be set up and populated with relevant paper data (including `pos_x`, `pos_y`, `pos_z`, `info_json`). The connection details are currently hardcoded in `backend/scripts/labels.py`.
+*   **Note**: This is not required for the core visualization pipeline.
 
-The project generates and processes point cloud data for visualization.
+Output Data
+-----------
 
-Data Structure
-~~~~~~~~~~~
+The processing pipeline generates several outputs within the `DATA_FOLDER`:
 
-Point cloud data is stored in the following structure:
-::
-
-   {DATA_FOLDER}/potrees/
-   ├── full.las           # Complete point cloud of all papers
-   └── {field_name}.las   # Field-specific point clouds
-
-File Format
-~~~~~~~~~
-
-* Input: LAS format point clouds
-* Output: Potree format for efficient web visualization
-
-Processing Pipeline
-~~~~~~~~~~~~~~~~
-
-1. Generate point cloud from paper embeddings
-2. Add color information based on field assignments
-3. Convert to Potree format for web visualization
+*   `{DATA_FOLDER}/cache/`: Stores cached intermediate results from various processing steps to speed up subsequent runs.
+*   `{DATA_FOLDER}/potrees/`: Contains the generated point clouds:
+    *   `full.las`, `field_name_1.las`, etc.: Point clouds in LAS format generated by `pointclouds.py`.
+    *   `full/`, `field_name_1/`, etc.: Converted Potree point cloud datasets generated by `PotreeConverter`, containing `metadata.json` and `octree.bin` files. These are loaded by the frontend.
+*   `{DATA_FOLDER}/static/`: Contains static assets needed by the frontend:
+    *   `meshes/field_name_1.stl`, etc.: STL mesh files representing field boundaries, generated by `mesh.py`.
+    *   `fields.json`: A JSON file containing consolidated metadata about fields, subfields, colors, mesh paths, and centers, generated by `backend/scripts/deploy.py`. This is loaded by the frontend's `FieldManager`.
 
 Environment Setup
---------------
+-----------------
 
-Make sure your ``.env`` file includes the necessary paths:
+Ensure your `.env` file in the project root correctly defines the necessary paths:
 
-::
+.. code-block:: text
 
-   DATA_FOLDER=/path/to/your/data/folder
-   POTREE_CONVERTER=/path/to/potree_converter
+    # Path to the directory containing MAG, vectors, and where outputs (cache, potrees, static) will be stored.
+    DATA_FOLDER=/path/to/your/data/folder
 
-The ``DATA_FOLDER`` should contain:
-* ``MAG/``: Directory for MAG data files
-* ``potrees/``: Directory for point cloud data
-* ``cache/``: Directory for cached computations 
+    # Full path to the PotreeConverter executable.
+    POTREE_CONVERTER=/path/to/PotreeConverter/PotreeConverter
+
+    # Optional: For S3 deployment via root deploy.py
+    # S3_BUCKET_NAME=your-s3-bucket-name
+
+    # Optional: For topic labeling feature
+    # OPENAI_API_KEY=your-openai-api-key
+
+The `DATA_FOLDER` must exist, and you should create the necessary subdirectories (`MAG`, `vectors`) and place the corresponding input data files within them before running the processing pipeline. 

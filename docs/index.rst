@@ -16,6 +16,7 @@ A powerful toolkit for processing and visualizing 3D map data, with a focus on a
    frontend
    processing_pipeline
    data_sources
+   deployment
 
 .. toctree::
    :maxdepth: 2
@@ -27,11 +28,14 @@ Core Features
 ------------
 
 * 3D visualization of academic papers and fields
-* Efficient data processing pipeline
-* Interactive exploration interface
-* Field hierarchy visualization
-* Automatic topic labeling
+* Efficient data processing pipeline (`cloud_builder.py`)
+* Interactive exploration interface (`frontend-html`)
+* Field hierarchy visualization & filtering
+* Constellation meshes for field boundaries
+* Live paper metadata via Semantic Scholar API
+* Optional topic labeling using GPT & PostgreSQL
 * High-performance caching system
+* S3 Deployment script
 
 Quick Links
 ----------
@@ -39,6 +43,8 @@ Quick Links
 * :doc:`getting_started` - Set up and run your first visualization
 * :doc:`frontend` - Learn about the visualization interface
 * :doc:`processing_pipeline` - Understand the data processing workflow
+* :doc:`data_sources` - Input data requirements and generated outputs
+* :doc:`deployment` - Deploying the frontend to AWS S3
 * :doc:`api/modules` - API reference documentation
 
 Support
