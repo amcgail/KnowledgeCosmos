@@ -8,7 +8,7 @@ Prerequisites
 
 *   **AWS Account**: You need an AWS account.
 *   **AWS CLI**: Install and configure the AWS Command Line Interface (CLI) with credentials that have permissions to create and manage S3 buckets, set policies, and upload objects.
-    *   Configuration typically involves running `aws configure` and providing your Access Key ID, Secret Access Key, default region, and default output format.
+    *   Configuration typically involves running ``aws configure`` and providing your Access Key ID, Secret Access Key, default region, and default output format.
 *   **S3 Bucket Name**: Decide on a globally unique name for your S3 bucket.
 
 Configuration
@@ -35,18 +35,18 @@ Running the Deployment Script
 
 **What the Script Does:**
 
-*   Checks if the specified S3 bucket exists. If not, it creates it (in `us-east-1` by default) and configures it for public static website hosting:
+*   Checks if the specified S3 bucket exists. If not, it creates it (in ``us-east-1`` by default) and configures it for public static website hosting:
     *   Sets appropriate ownership controls.
     *   Disables public access blocks that would prevent website hosting.
-    *   Applies a bucket policy allowing public read access (`s3:GetObject`).
-    *   Enables static website hosting, setting `index.html` as the index document.
-    *   (If newly created) Uploads a temporary test `index.html` and attempts to open the bucket URL in your browser.
-*   Synchronizes the contents of the local `frontend-html/` directory to the root of the S3 bucket using `aws s3 sync`. It sets the Access Control List (ACL) for all uploaded files to `public-read`.
-*   Prints the public URL of the S3 bucket website endpoint upon completion (e.g., `http://your-unique-bucket-name.s3-website-us-east-1.amazonaws.com/` or similar, depending on the region).
+    *   Applies a bucket policy allowing public read access (``s3:GetObject``).
+    *   Enables static website hosting, setting ``index.html`` as the index document.
+    *   (If newly created) Uploads a temporary test ``index.html`` and attempts to open the bucket URL in your browser.
+*   Synchronizes the contents of the local ``frontend-html/`` directory to the root of the S3 bucket using ``aws s3 sync``. It sets the Access Control List (ACL) for all uploaded files to ``public-read``.
+*   Prints the public URL of the S3 bucket website endpoint upon completion (e.g., ``http://your-unique-bucket-name.s3-website-us-east-1.amazonaws.com/`` or similar, depending on the region).
 
 Notes
 -----
 
-*   The script assumes the generated Potree data (`/data/...`) and static assets (`/static/...`) are correctly placed or linked within the `frontend-html` directory structure *before* running `deploy.py`. The deployment script itself only syncs the `frontend-html` folder.
+*   The script assumes the generated Potree data (``/data/...``) and static assets (``/static/...``) are correctly placed or linked within the ``frontend-html`` directory structure *before* running ``deploy.py``. The deployment script itself only syncs the ``frontend-html`` folder.
 *   Deploying large amounts of data (like Potree point clouds) to S3 can incur costs and take time.
 *   Review the bucket policies and IAM permissions carefully to ensure appropriate security. 

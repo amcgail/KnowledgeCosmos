@@ -87,8 +87,8 @@ Database Integration
 The module uses PostgreSQL for paper data:
 
 * **Schema**
-    - Paper coordinates (pos_x, pos_y, pos_z)
-    - Paper metadata (info_json)
+    - Paper coordinates (``pos_x``, ``pos_y``, ``pos_z``)
+    - Paper metadata (``info_json``)
     - Spatial indices
     - Performance optimizations
 

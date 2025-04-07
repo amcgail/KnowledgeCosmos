@@ -28,8 +28,8 @@ Core Features
 ------------
 
 * 3D visualization of academic papers and fields
-* Efficient data processing pipeline (`cloud_builder.py`)
-* Interactive exploration interface (`frontend-html`)
+* Efficient data processing pipeline (``cloud_builder.py``)
+* Interactive exploration interface (``frontend-html``)
 * Field hierarchy visualization & filtering
 * Constellation meshes for field boundaries
 * Live paper metadata via Semantic Scholar API
