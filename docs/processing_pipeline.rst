@@ -1,100 +1,71 @@
 Processing Pipeline
 =================
 
-This document explains how the different components of the system work together to create the 3D visualization of academic papers.
+This document details the backend data processing pipeline that transforms raw academic data into the 3D visualizations displayed by the Knowledge Cosmos frontend.
 
 Overview
 --------
 
-The system processes academic paper data through several stages:
+The pipeline involves several key stages, orchestrated by scripts within the `backend/scripts` directory:
 
-1. Data Collection and Preparation
-2. Vector Processing and Dimensionality Reduction
-3. Field Mapping and Hierarchy
-4. 3D Visualization Generation
+1.  **Data Ingestion & Preparation**: Loading and preparing raw data from sources like the Microsoft Academic Graph (MAG) and pre-computed SPECTER embeddings.
+2.  **Dimensionality Reduction**: Projecting high-dimensional SPECTER paper embeddings into a 3D space using UMAP.
+3.  **Field Hierarchy Construction**: Organizing papers into a hierarchy of academic fields based on MAG data.
+4.  **Visualization Asset Generation**: Creating the necessary files for the frontend, including point clouds and field boundary meshes.
+5.  **Topic Labeling (Optional)**: Generating descriptive labels for dense regions within the 3D space using GPT.
 
-Data Collection and Preparation
+Throughout the pipeline, a custom caching mechanism (`backend/scripts/common.py`) utilizing pickle and file hashing is employed to store intermediate results and avoid redundant computations, significantly speeding up reprocessing.
+
+Data Ingestion & Preparation
 -----------------------------
 
-The system starts with several data sources:
+Raw data is sourced primarily from the Microsoft Academic Graph (MAG) dataset and pre-computed SPECTER embeddings for papers. The `backend/scripts/MAG.py` script interacts with a local database instance containing MAG data (specifically paper IDs and publication years via `GetIds` and `GetYears`), filtering it based on available embeddings. The `backend/scripts/project_vectors.py` module contains helper functions (`vec_it`, `portion_generator`) to efficiently iterate through the potentially large SPECTER embedding files, which are expected to be stored in the location specified by the `DATA_FOLDER` environment variable.
 
-* **MAG Data**: Microsoft Academic Graph data containing paper information and field relationships
-* **SPECTER Embeddings**: Pre-computed paper embeddings from the SPECTER model
-* **Field Hierarchy**: Information about academic field relationships
+Dimensionality Reduction (UMAP)
+---------------------------------
 
-The :mod:`backend.scripts.MAG` module handles MAG data integration, while the :mod:`backend.scripts.project_vectors` module manages the SPECTER embeddings.
+To visualize the high-dimensional SPECTER embeddings (which capture semantic relationships between papers), they are projected into a 3D space using the UMAP algorithm. This process is managed by `backend/scripts/project_vectors.py`:
 
-Vector Processing and Dimensionality Reduction
--------------------------------------------
+1.  **Sampling (`SampleForUmap`)**: A representative subset of paper embeddings is sampled to train the UMAP model efficiently.
+2.  **UMAP Model Training (`FitUmapToSample`)**: A UMAP `reducer` object is trained on the sampled embeddings to learn the mapping from high-dimensional space to 3D.
+3.  **Full Projection (`GetUmapEmbedding`)**: The trained UMAP `reducer` is then used to transform the embeddings of *all* relevant papers into 3D coordinates. This function processes embeddings in chunks for memory efficiency and leverages the caching system.
 
-The high-dimensional SPECTER embeddings are reduced to 3D space for visualization:
+The resulting 3D coordinates represent the semantic position of each paper in the visualization space.
 
-1. **Sampling**: A subset of papers is sampled for UMAP training
-2. **UMAP Fitting**: The UMAP model is trained on the sample
-3. **Full Projection**: All papers are projected to 3D space
+Field Hierarchy Construction
+---------------------------
 
-This is handled by the :mod:`backend.scripts.project_vectors` module, which provides functions like:
+The pipeline organizes papers into a hierarchical structure of academic fields using data from MAG. The `backend/scripts/fields.py` script handles this:
 
-* :func:`SampleForUmap`: Creates a training sample
-* :func:`FitUmapToSample`: Trains the UMAP model
-* :func:`GetUmapEmbedding`: Projects all papers to 3D space
+1.  **Loading Field Data (`GetFieldNames`, `GetSubFields`)**: It reads MAG files (`FieldsOfStudy.txt`, `FieldOfStudyChildren.csv`) to extract field names, levels, paper counts, and parent-child relationships, applying filters based on paper count and hierarchy level.
+2.  **Mapping Papers to Fields (`PaperToFields`, `FieldToPapers`, `FieldNameToPoints`)**: It processes `PaperFieldsOfStudy.csv` files to link each paper (identified by MAG ID) to its associated field(s). Helper functions provide convenient lookups for paper-to-field and field-to-paper mappings, as well as retrieving the 3D points associated with each field.
+3.  **Identifying Top-Level Fields (`GetTopLevel`)**: The script determines the top-level fields in the hierarchy, which are crucial for organizing the visualization.
 
-Field Mapping and Hierarchy
+Visualization Asset Generation
+-----------------------------
+
+Based on the 3D embeddings and field mappings, the pipeline generates assets required by the frontend visualization:
+
+*   **Point Clouds (`backend/scripts/pointclouds.py`)**: Creates point cloud files in LAS format, later converted to the web-friendly Potree format using the external `PotreeConverter` tool (location specified by `POTREE_CONVERTER` environment variable).
+    *   `ProduceTopLevelPointCloud`: Generates a single point cloud containing all papers, colored based on their 3D position.
+    *   `ProduceFieldPointClouds`: Creates separate point clouds for each major academic field, where points (papers) are colored according to their subfield membership. This enables the frontend's field filtering feature.
+    *   Paper metadata (MAG ID, publication year) is embedded within the LAS files for use in frontend interactions.
+
+*   **Field Meshes (`backend/scripts/mesh.py`)**: Generates 3D mesh files (STL format) representing the boundaries of academic fields.
+    *   `WriteFieldMeshes`: For each significant field (determined by paper count), it calculates an alpha shape (a generalization of a convex hull) around the 3D points of its associated papers. This function includes density filtering to focus on core areas of a field and uses `trimesh` and `alphashape` libraries.
+    *   `GetFieldCenters`: Calculates representative center points and optimal camera positions for each field mesh, used for navigation and labeling in the frontend.
+
+Topic Labeling (Optional)
 -------------------------
 
-The system organizes papers into academic fields:
+The `backend/scripts/labels.py` module provides an optional step to automatically generate descriptive topic labels for dense regions within the 3D space. The `TopicLabeler` class works by:
 
-1. **Field Loading**: Loads field information from MAG data
-2. **Hierarchy Building**: Constructs the field hierarchy
-3. **Paper-Field Mapping**: Associates papers with their fields
+1.  **Voxelizing Space**: Dividing the 3D bounding box of the papers into a grid of voxels.
+2.  **Sampling Papers**: Selecting a sample of papers within each sufficiently dense voxel.
+3.  **Querying GPT**: Sending the titles of the sampled papers to an OpenAI GPT model (requires API key) and asking for a concise topic label.
+4.  **Storing Labels**: Saving the generated labels along with their corresponding voxel coordinates.
 
-The :mod:`backend.scripts.fields` module provides functions like:
-
-* :func:`GetFieldNames`: Retrieves field information
-* :func:`GetSubFields`: Builds the field hierarchy
-* :func:`PaperToFields`: Maps papers to their fields
-
-3D Visualization Generation
--------------------------
-
-The system generates several types of 3D visualizations:
-
-1. **Point Clouds**: Raw paper positions in 3D space
-2. **Field Meshes**: Convex hulls around field clusters
-3. **Labeled Regions**: Topic-labeled regions of the space
-
-This involves several modules:
-
-* :mod:`backend.scripts.pointclouds`: Generates point cloud visualizations
-* :mod:`backend.scripts.mesh`: Creates field boundary meshes
-* :mod:`backend.scripts.labels`: Generates topic labels for regions
-
-Point Cloud Generation
-~~~~~~~~~~~~~~~~~~~
-
-The :mod:`backend.scripts.pointclouds` module provides functions like:
-
-* :func:`ConvertPotree`: Converts LAS files to Potree format
-* :func:`ProduceTopLevelPointCloud`: Creates the main visualization
-* :func:`ProduceFieldPointClouds`: Generates field-specific visualizations
-
-Mesh Generation
-~~~~~~~~~~~~~
-
-The :mod:`backend.scripts.mesh` module creates 3D meshes:
-
-* :func:`WriteFieldMeshes`: Generates STL meshes for field boundaries
-* Uses alpha shapes to create convex hulls around field clusters
-
-Caching System
-------------
-
-Throughout the pipeline, the :mod:`backend.scripts.common` module's caching system is used to:
-
-* Cache expensive computations
-* Store intermediate results
-* Enable incremental updates
-* Improve performance
+This process helps add semantic meaning to different areas of the visualized knowledge space.
 
 Example Usage
 -----------
