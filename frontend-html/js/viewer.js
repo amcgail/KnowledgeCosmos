@@ -625,7 +625,7 @@ export class Viewer {
             if (currentMessage.text === 'END') {
                 // Update message text instead of replacing innerHTML
                 messageText.textContent = "THE KNOWLEDGE COSMOS";
-                messageText.style.fontSize = '80pt';
+                messageText.style.fontSize = '60pt';
                 messageText.style.fontFamily = 'cyber';
                 messageText.style.maxWidth = '100%';
                 messageText.style.width = '100%';
