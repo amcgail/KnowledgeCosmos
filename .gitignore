@@ -15,3 +15,4 @@ frontend-html/data/*
 
 # just for testing
 frontend-react/*
+frontend-html/static
