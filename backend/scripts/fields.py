@@ -1,4 +1,5 @@
 from .common import *
+from pathlib import Path
 
 __all__ = [
     'GetFieldNames',
@@ -42,6 +43,7 @@ def PointIterator(LIMIT=None):
     
     import zipfile
     from .project_vectors import GetUmapEmbedding
+    from tqdm.auto import tqdm
 
     emb = GetUmapEmbedding()
     fnames = GetFieldNames()
@@ -56,42 +58,62 @@ def PointIterator(LIMIT=None):
 
     ps = set(emb.keys())
 
-    for p in sorted(fns):
-        zp = zipfile.ZipFile(str(p))
-        fname = [x.filename for x in zp.filelist if '__MAC' not in x.filename][0]
-        with zp.open(fname) as inf:
-            print('opened', str(p))
-            first=True
-            i = 0
-            for l in inf:
-                i += 1
-                if i%10000000 == 0:
-                    print(f'{i/1e6:0.1f}M processed')
-                    
-                if first: 
-                    first=False
-                    continue
-                    
-                pid, d = l.strip().decode('utf8').split(',')
-                
-                if pid not in ps:
-                    continue
-                    
-                if d not in fnames:
-                    skipped+=1
+    # Initialize a single tqdm instance outside the loops
+    # We don't know the total lines easily, so omit `total`
+    BATCH_SIZE = 1_000_000
+    lines_processed_in_batch = 0
+    with tqdm(unit='M lines', desc='Initializing...') as pbar:
+        for p in sorted(fns): # Iterate through files without tqdm here
+            zp = zipfile.ZipFile(str(p))
+            # Ensure consistent path separators for display
+            relative_p_path = Path(p).relative_to(DATA_FOLDER)
+            fname_in_zip = [x.filename for x in zp.filelist if '__MAC' not in x.filename][0]
+            
+            # Update description for the current file
+            pbar.set_description(f"Processing {relative_p_path}/{fname_in_zip}") 
+
+            with zp.open(fname_in_zip) as inf:
+                it = iter(inf) 
+                try:
+                    next(it) # Skip header
+                except StopIteration: # Handle empty files
                     continue
                 
-                mypos = emb[pid]
-                points_per_subfield[ d ].append( mypos )
-                subfield_per_paper[pid].append( d )
-                
-                if LIMIT is not None and iii > LIMIT:
-                    break
+                for l in it: # Iterate through lines without inner tqdm
+                    try:
+                        pid, d = l.strip().decode('utf8').split(',')
+                    except ValueError:
+                        # print(f"Skipping malformed line in {fname_in_zip}: {l.strip().decode('utf8', errors='ignore')}") # Optional: uncomment for debugging
+                        continue
+
+                    if pid not in ps:
+                        continue
+                        
+                    if d not in fnames:
+                        skipped+=1
+                        continue
                     
-                iii += 1    
-                
-        if LIMIT is not None and iii > LIMIT:
-            break
+                    mypos = emb[pid]
+                    points_per_subfield[ d ].append( mypos )
+                    subfield_per_paper[pid].append( d )
+                    
+                    # Update the single progress bar in batches
+                    lines_processed_in_batch += 1
+                    iii += 1
+
+                    if lines_processed_in_batch >= BATCH_SIZE:
+                        pbar.update(1) # Update by 1 'M lines'
+                        lines_processed_in_batch = 0
+
+                    if LIMIT is not None and iii >= LIMIT:
+                        break
+                        
+            if LIMIT is not None and iii >= LIMIT:
+                break
+
+    # Update with any remaining lines processed in the last batch (as a fraction of a million)
+    if lines_processed_in_batch > 0:
+        pbar.update(lines_processed_in_batch / BATCH_SIZE)
 
     return points_per_subfield, subfield_per_paper
 

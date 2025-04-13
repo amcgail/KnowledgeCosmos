@@ -53,7 +53,8 @@ def GetYears():
 
 @cache
 def GetIds():
-    # now look in the DB to find which IDs to actually include
+    # In case you are going to use server.py for a backend
+    # NOTE: Currently, we use Semantic Scholar to query papers, so this is irrelevant
     import psycopg2
     conn = psycopg2.connect("dbname=MAG user=postgres password=mcgail port=5433")
     cur = conn.cursor()
