@@ -41,6 +41,7 @@ export class PaperManager {
         this.loadHistory();
         this.setupTabNavigation();
         this.setupSidebarToggle();
+        this.setupPaperSidebarToggle();
     }
 
     setupTabNavigation() {
@@ -208,6 +209,7 @@ export class PaperManager {
     showPaperCard(id) {
         $("#potree_render_area").css('left', '400px');
         $(".paper-details").toggle(true);
+        $(".paper-sidebar-toggle").toggle(true);
         $(".paper-details .loading-placeholders").show();
         $(".paper-details>.paper-title, .paper-details>.paper-meta, .paper-details>.paper-tags, .paper-details>.paper-content").hide();
 
@@ -262,9 +264,12 @@ export class PaperManager {
         });
     }
 
-    hidePaperCard() {
+    hidePaperCard(keepChevron = false) {
         $("#paper_info").toggle(false);
         $(".paper-details").toggle(false);
+        if (!keepChevron) {
+            $(".paper-sidebar-toggle").toggle(false);
+        }
         $("#potree_render_area").css('left', '0');
     }
 
@@ -441,9 +446,7 @@ export class PaperManager {
 
     resetSelection() {
         this.resetFocalSphere();
-        $("#paper_info").toggle(false);
-        $(".paper-details").toggle(false);
-        $("#potree_render_area").css('left', '0');
+        this.hidePaperCard(false); // Hide chevron when unfocusing
     }
 
     // Bookmark functionality
@@ -511,6 +514,25 @@ export class PaperManager {
             });
             
             savedList.append(item);
+        });
+    }
+
+    setupPaperSidebarToggle() {
+        $('.paper-sidebar-toggle').on('click', () => {
+            const isCollapsed = !$(".paper-details").is(":visible");
+            if (isCollapsed) {
+                // Expand
+                $(".paper-details").toggle(true);
+                $("#potree_render_area").css('left', '400px');
+                $(".paper-sidebar-toggle").css('left', '440px');
+                $(".paper-sidebar-toggle i").css('transform', 'rotate(0deg)');
+            } else {
+                // Collapse
+                $(".paper-details").toggle(false);
+                $("#potree_render_area").css('left', '0');
+                $(".paper-sidebar-toggle").css('left', '0');
+                $(".paper-sidebar-toggle i").css('transform', 'rotate(180deg)');
+            }
         });
     }
 } 

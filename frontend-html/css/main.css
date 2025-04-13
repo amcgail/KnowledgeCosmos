@@ -395,3 +395,57 @@ body {
 .selected-annotation {
     z-index: 99999999 !important;
 }
+
+/* Sidebar Toggle Base Styles */
+.sidebar-toggle,
+.paper-sidebar-toggle {
+    position: fixed;
+    top: 50%;
+    width: 40px;
+    height: 40px;
+    background: white;
+    border: none;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    transition: all 0.3s ease;
+}
+
+.sidebar-toggle:hover,
+.paper-sidebar-toggle:hover {
+    background: #f8f8f8;
+}
+
+.sidebar-toggle i,
+.paper-sidebar-toggle i {
+    font-size: 16px;
+    color: #666;
+    transition: transform 0.3s ease;
+}
+
+/* Right Sidebar Toggle */
+.sidebar-toggle {
+    right: 0;
+    border-radius: 50% 0 0 50%;
+}
+
+.sidebar-toggle i {
+    transform: rotate(180deg);
+}
+
+/* Paper Sidebar Toggle */
+.paper-sidebar-toggle {
+    left: 440px;  /* Account for panel width (400px) + padding (20px * 2) */
+    border-radius: 0 50% 50% 0;
+}
+
+.paper-sidebar-toggle i {
+    transform: rotate(0deg);
+}
+
+.paper-details:not(:visible) + .paper-sidebar-toggle {
+    display: none;
+}
