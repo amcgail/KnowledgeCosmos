@@ -122,35 +122,42 @@ def WriteFieldMeshes(
     field_colors, field_orders = pointclouds.ProduceFieldPointClouds()
     pointcloud_fields = list(field_colors.keys()) + [y for x in field_colors.values() for y in x.keys()]
 
-    to_mesh = list( set(above_threshold) | set(pointcloud_fields) )
+    to_mesh = sorted( set(above_threshold) | set(pointcloud_fields) )
 
-    for fid in to_mesh:
-        points = points_per_subfield[fid]
+    with tqdm(total=len(to_mesh), desc="Generating field meshes") as pbar:
+        for fid in to_mesh:
+            points = points_per_subfield[fid]
 
-        outfn = outd / f"{fnames[fid]}.stl"
-        if not overwrite and outfn.exists():
-            continue
+            outfn = outd / f"{fnames[fid]}.stl"
+            if not overwrite and outfn.exists():
+                continue                
+
+            pbar.set_postfix_str(f"processing {fnames[fid]}")
             
-        print('processing', fnames[fid], len(points_per_subfield[fid]), 'papers')
-        
-        # Convert points to numpy array
-        points_array = np.array(points)
-        
-        # Calculate point densities with parallel processing
-        densities = calculate_point_density(points_array, num_threads=NUM_THREADS)
-        
-        # Keep only points in dense regions using absolute threshold
-        dense_points = points_array[densities >= MIN_DENSITY]
-        
-        # If we still have too many points, randomly sample
-        if len(dense_points) > MIN_POINTS_MESH:
-            dense_points = sample(dense_points.tolist(), MIN_POINTS_MESH)
+            # Convert points to numpy array
+            points_array = np.array(points)
             
-        # Generate mesh from dense points
-        hull = alphashape.alphashape(dense_points, ALPHA)
+            # Calculate point densities with parallel processing
+            densities = calculate_point_density(points_array, num_threads=NUM_THREADS)
+            
+            # Keep only points in dense regions using absolute threshold
+            dense_points = points_array[densities >= MIN_DENSITY]
+            
+            # If we still have too many points, randomly sample
+            if len(dense_points) > MIN_POINTS_MESH:
+                dense_points = sample(dense_points.tolist(), MIN_POINTS_MESH)
 
-        with open(outfn, 'wb') as outf:
-            outf.write(trimesh.exchange.export.export_stl(hull))
+            if len(dense_points) < 100:
+                pbar.update(1)
+                continue
+                
+            # Generate mesh from dense points
+            hull = alphashape.alphashape(dense_points, ALPHA)
+
+            with open(outfn, 'wb') as outf:
+                outf.write(trimesh.exchange.export.export_stl(hull))
+
+            pbar.update(1)
 
     return to_mesh
 
@@ -186,6 +193,23 @@ def calculate_camera_position(mesh, center, global_center, fov_degrees=60, scale
     
     return camera_pos.tolist()
 
+def adjust_center_if_outside(mesh, center):
+    """If center is outside mesh, move it to closest vertex.
+    
+    Args:
+        mesh: trimesh.Trimesh object
+        center: (3,) numpy array of center coordinates
+        
+    Returns:
+        (3,) numpy array of adjusted center coordinates
+    """
+    center = np.array(center)
+    if not is_point_inside_mesh(mesh, center):
+        # Find closest vertex
+        distances = np.linalg.norm(mesh.vertices - center, axis=1)
+        closest_vertex_idx = np.argmin(distances)
+        return mesh.vertices[closest_vertex_idx]
+    return center
 def is_point_inside_mesh(mesh, point):
     """Check if a point is inside a mesh using ray casting.
     
@@ -209,31 +233,14 @@ def is_point_inside_mesh(mesh, point):
     # Even number of intersections means outside
     return len(locations) % 2 == 1
 
-def adjust_center_if_outside(mesh, center):
-    """If center is outside mesh, move it to closest vertex.
-    
-    Args:
-        mesh: trimesh.Trimesh object
-        center: (3,) numpy array of center coordinates
-        
-    Returns:
-        (3,) numpy array of adjusted center coordinates
-    """
-    center = np.array(center)
-    if not is_point_inside_mesh(mesh, center):
-        # Find closest vertex
-        distances = np.linalg.norm(mesh.vertices - center, axis=1)
-        closest_vertex_idx = np.argmin(distances)
-        return mesh.vertices[closest_vertex_idx]
-    return center
-
 def calculate_true_center(mesh, num_samples=25):
     """Calculate center of mass by sampling points throughout the mesh volume.
+    Turns out this is essentially the same as using the center_mass attribute,
+        and much slower.
     
     Args:
         mesh: trimesh.Trimesh object
         num_samples: Number of samples along each axis
-        pbar: tqdm progress bar to update description
         
     Returns:
         (3,) numpy array of center coordinates
@@ -251,15 +258,49 @@ def calculate_true_center(mesh, num_samples=25):
     y = np.linspace(min_bound[1], max_bound[1], num_samples)
     z = np.linspace(min_bound[2], max_bound[2], num_samples)
     
-    # Create 3D grid of points
-    xx, yy, zz = np.meshgrid(x, y, z)
-    points = np.column_stack((xx.flatten(), yy.flatten(), zz.flatten()))
+    # Create a 2D grid for y-z plane
+    yy, zz = np.meshgrid(y, z)
+    yz_points = np.column_stack((yy.flatten(), zz.flatten()))
     
-    # Filter to keep only interior points
     interior_points = []
-    for point in points:
-        if is_point_inside_mesh(mesh, point):
-            interior_points.append(point)
+    
+    # For each y-z point, cast a ray along the x-axis and find all intersections
+    for yz in tqdm(yz_points, desc="Sampling interior points", leave=False):
+        # Start from minimum x bound
+        start_point = np.array([min_bound[0] - 0.1, yz[0], yz[1]])
+        
+        # Cast ray in positive x direction
+        ray_origins = np.array([start_point])
+        ray_directions = np.array([[1.0, 0.0, 0.0]])
+        
+        # Get all intersections
+        locations, index_ray, index_tri = mesh.ray.intersects_location(
+            ray_origins=ray_origins,
+            ray_directions=ray_directions
+        )
+        
+        # Sort intersections by x coordinate
+        if len(locations) > 0:
+            sorted_indices = np.argsort(locations[:, 0])
+            locations = locations[sorted_indices]
+            
+            # Start outside the mesh
+            inside = False
+            
+            # For each intersection, flip inside/outside state
+            for i in range(len(locations)):
+                inside = not inside
+                
+                # If we're inside after this intersection, add sample points
+                # between this intersection and the next one (or max_bound)
+                if inside:
+                    start_x = locations[i][0]
+                    end_x = locations[i+1][0] if i+1 < len(locations) else max_bound[0]
+                    
+                    # Sample points along this inside segment
+                    sample_xs = np.linspace(start_x, end_x, num=5)[1:-1]  # exclude boundaries
+                    for sample_x in sample_xs:
+                        interior_points.append([sample_x, yz[0], yz[1]])
     
     if not interior_points:
         # Fallback to center of mass if no interior points found
@@ -293,7 +334,7 @@ def GetFieldCenters():
             field_name = stl_file.stem
             meshes[field_name] = mesh
             if not hasattr(mesh, 'vertices'):
-                print(f"Mesh {field_name} has no vertices")
+                pbar.update(1)
                 continue
 
             all_vertices.extend(mesh.vertices)
@@ -305,14 +346,14 @@ def GetFieldCenters():
     global_center = global_center.tolist()
     
     # Calculate centers for each mesh
-    with tqdm(total=len(meshes), desc="Processing fields") as pbar:
+    with tqdm(total=len(meshes), desc="Calculating Field Centers") as pbar:
         for field_name, mesh in meshes.items():
-            pbar.set_postfix_str(f"processing {field_name}")
+            pbar.set_postfix_str(field_name)
             
             # Get the true center and adjust if somehow outside
-            center = calculate_true_center(mesh)
+            center = mesh.center_mass
             if center is None:
-                print(f"Mesh {field_name} has no center")
+                pbar.update(1)
                 continue
             
             center = adjust_center_if_outside(mesh, center)
@@ -341,15 +382,13 @@ def WriteFullMesh(
         ALPHA: Alpha value for alphashape algorithm (higher = looser fit)
         SAMPLE_PERCENT: Percentage of points to randomly sample (1 = 1%)
     """
-    from . import project_vectors, MAG
+    from . import project_vectors
     import shapely
     
     # Get embedding and valid paper IDs
     embedding = project_vectors.GetUmapEmbedding()
-    valid_paper_ids = MAG.GetIds()
-    
-    # Filter papers to only include those in both MAG and embedding
-    paper_ids = sorted(valid_paper_ids & set(embedding))
+    paper_ids = sorted(embedding)
+
     print('Total points:', len(paper_ids))
     
     # Sample paper IDs first
@@ -378,6 +417,6 @@ def WriteFullMesh(
     return "full"
 
 if __name__ == '__main__':
-    WriteFieldMeshes.make(force=True, overwrite=False)
-    GetFieldCenters.make(force=True)
-    #WriteFullMesh.make(force=True)
+    #WriteFieldMeshes.make(force=True, overwrite=False)
+    #GetFieldCenters.make(force=True)
+    WriteFullMesh.make(force=True)
