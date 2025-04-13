@@ -45,6 +45,14 @@ os.makedirs(cache_dir, exist_ok=True)
 
 import inspect
 
+FIELDS_TO_FORGET = [
+    'Petrology',
+    'Market economy',
+    'Arithmetic',
+    'Geodesy',
+    'Civil engineering',
+]
+
 class CacheWrapper:
     """
     A wrapper class that provides caching functionality for functions using pickle-based file storage.
@@ -55,6 +63,7 @@ class CacheWrapper:
     3. Supports memory caching to avoid repeated disk reads
     4. Allows ignoring specific parameters from the cache key
     5. Handles default parameter values automatically
+    6. Can track explicit dependencies on CONFIG_PARAMS values
     
     The cache files are stored in a directory structure based on the module name and function name.
     Each cache file is named using the pattern: {module}/{function_name}_{hash}.pkl
@@ -62,25 +71,30 @@ class CacheWrapper:
     Attributes:
         func: The function to be cached
         ignore: List of parameter names to ignore when creating cache keys
+        config_depends_on: List of CONFIG_PARAMS keys this function depends on
         memcache: Dictionary for in-memory caching
         name: Name of the wrapped function
         module: Module name of the wrapped function
         defaults: Dictionary of default parameter values
     """
     
-    def __init__(self, func, ignore=None):
+    def __init__(self, func, ignore=None, config_depends_on=None):
         """
         Initialize the CacheWrapper.
         
         Args:
             func: The function to be cached
             ignore: List of parameter names to ignore when creating cache keys
+            config_depends_on: List of CONFIG_PARAMS keys this function depends on
         """
         if ignore is None:
             ignore = []
+        if config_depends_on is None:
+            config_depends_on = []
 
         self.func = func
         self.ignore = ignore
+        self.config_depends_on = config_depends_on
         self.memcache = {}
         self.name = self.func.__name__
         
@@ -180,6 +194,25 @@ class CacheWrapper:
             return self.memcache[result_file]
                                  
         if result_file.exists() and meta_file.exists():
+            # First check if any of the CONFIG_PARAMS dependencies have changed
+            if self.config_depends_on:
+                import yaml
+                try:
+                    with open(meta_file, 'r') as f:
+                        metadata = yaml.safe_load(f)
+                        
+                    # Check if the cached config values match current ones
+                    if 'config_values' in metadata:
+                        for key in self.config_depends_on:
+                            if key in CONFIG_PARAMS:
+                                current_value = CONFIG_PARAMS[key]
+                                if key not in metadata['config_values'] or metadata['config_values'][key] != current_value:
+                                    logger.info(f"Cache for {self.module}.{self.name} invalidated due to CONFIG_PARAMS[{key}] change")
+                                    return None
+                except Exception as e:
+                    logger.warning(f"Error checking CONFIG_PARAMS dependencies: {e}")
+                    return None
+            
             s = time()
             # Load the result data
             with open(result_file, 'rb') as f:
@@ -190,7 +223,7 @@ class CacheWrapper:
 
         return None
     
-    def save(self, kwargs, result):
+    def save(self, kwargs, result, time_taken=None):
         """
         Save results to separate metadata and result files.
         
@@ -207,8 +240,18 @@ class CacheWrapper:
             'args': kwargs,
             'timestamp': time(),
             'module': self.module,
-            'function': self.name
+            'function': self.name,
+            'time_taken': time_taken
         }
+        
+        # Include CONFIG_PARAMS dependencies in metadata
+        if self.config_depends_on:
+            metadata['config_values'] = {
+                key: CONFIG_PARAMS.get(key)
+                for key in self.config_depends_on
+                if key in CONFIG_PARAMS
+            }
+        
         with open(meta_file, 'w') as f:
             yaml.dump(metadata, f, default_flow_style=False)
             
@@ -236,6 +279,13 @@ class CacheWrapper:
         if len(args):
             raise ValueError("This is a cached function. Use only keyword arguments")
         
+        # Start with defaults
+        kwargs = dict(self.defaults, **kwargs)
+        # Override with config params if they exist
+        for k, v in CONFIG_PARAMS.items():
+            if k in self.kwargs_only:  # Only override if it's a valid keyword arg
+                kwargs[k] = v
+        
         cache_file = self.filename(kwargs)
 
         # If cache exists, do nothing
@@ -248,7 +298,7 @@ class CacheWrapper:
         s = time()
         result = self.func(*args, **kwargs)
         logger.info(f"Computed {self.module}.{self.name} in {time()-s:.1f}s")
-        self.save(kwargs, result)
+        self.save(kwargs, result, time_taken=time()-s)
 
         return result
 
@@ -283,7 +333,7 @@ class CacheWrapper:
         result = self.make(*args, **kwargs)
         return result
 
-def cache(func=None, ignore=None):
+def cache(func=None, ignore=None, config_depends_on=None):
     """
     Decorator function that creates a CacheWrapper instance.
     
@@ -292,20 +342,28 @@ def cache(func=None, ignore=None):
         def my_function(param1, param2):
             return expensive_computation(param1, param2)
             
-        # Or with ignored parameters:
+        # With ignored parameters:
         @cache(ignore=['verbose'])
         def my_function(param1, param2, verbose=False):
             return expensive_computation(param1, param2)
+            
+        # With CONFIG_PARAMS dependencies:
+        @cache(config_depends_on=['resolution', 'max_points'])
+        def my_function(param1, param2):
+            # This function internally depends on CONFIG_PARAMS['resolution']
+            # If that value changes, the cache will be invalidated
+            return resolution_dependent_computation(param1, param2)
     
     Args:
         func: The function to be cached (when used as decorator)
         ignore: List of parameter names to ignore in cache key
+        config_depends_on: List of CONFIG_PARAMS keys this function depends on
         
     Returns:
         CacheWrapper: A wrapper instance when used as decorator
         function: A decorator function when called with arguments
     """
     if func is None:
-        return lambda f: CacheWrapper(f, ignore)
+        return lambda f: CacheWrapper(f, ignore, config_depends_on)
     
-    return CacheWrapper(func, ignore)
+    return CacheWrapper(func, ignore, config_depends_on)
