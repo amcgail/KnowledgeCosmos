@@ -5,6 +5,7 @@ import * as threeBvhCsg from "/libs/three-bvh-csg.js";
 
 THREE.Cache.enabled = true;
 
+const MESH_VERSION = "2.0";
 /**
  * Class to manage a single field and its subfields
  * @class
@@ -28,6 +29,7 @@ class Field {
         this.isActive = false;
         this.swatchElements = [];
         this.labelElements = [];
+        this.useIndependentCloud = false; // New flag to track which version to use
 
         this.$legendItem = null;
         this.$expansionElement = null;
@@ -111,9 +113,13 @@ class Field {
             $(".legend_item").data('expanded', false);
             this.$legendItem.data('expanded', true);
 
+            this.setActive(true);
+
             callback(true);
         } else {
             this.$legendItem.data('expanded', false);
+
+            this.setActive(false);
 
             callback(false);
         }
@@ -126,24 +132,61 @@ class Field {
     createLegendItem() {
         const $s = $("<span class='legend_item'>");
         $s.data('expanded', false);
-        $s.html(this.name);
+
+        // Create container for name and toggle
+        const $container = $("<div class='legend-item-container' style='display: flex; align-items: center;'>");
+        
+        // Add field name
+        const $name = $("<span class='field-name'>").html(this.name);
+        $container.append($name);
+        // Add toggle icon
+        if (this.manager.allowIndependentClouds) {
+            const $toggle = $(`<svg class="embedding-toggle" width="16" height="16" viewBox="0 0 24 24" style="margin-left: 8px; cursor: pointer;">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+            </svg>`);
+        
+            $toggle.attr('title', 'Switch to Independent Embedding');
+            
+            // Add click handler for toggle
+            $toggle.click((e) => {
+                e.stopPropagation(); // Prevent legend item expansion
+                
+                // Only allow toggling if independent clouds are enabled
+                this.useIndependentCloud = !this.useIndependentCloud;
+                
+                // Update icon appearance
+                if (this.useIndependentCloud) {
+                    $toggle.find('path').attr('d', 'M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0-5C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z');
+                    $toggle.attr('title', 'Switch to Global Embedding');
+                } else {
+                    $toggle.find('path').attr('d', 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z');
+                    $toggle.attr('title', 'Switch to Independent Embedding');
+                }
+                
+                // If field is currently active, reload with new embedding
+                if (this.isActive) {
+                    this.manager.loadFieldPointCloud(this.name, (pc) => {
+                        // Update point cloud
+                        this.pointCloud = pc;
+                        this.pointCloud.visible = true;
+                    });
+                };
+                
+            });
+
+            $container.append($toggle);
+        }
+
+        $s.append($container);
 
         this.$legendItem = $s;
         $s.click(() => this.toggleLegendItem(undefined, (state) => {
             if (state) {
                 this.manager.applyFilter(this.name);
             } else {
-                // Clear active field
                 this.manager.setActiveField(null);
                 this.manager.topLevelFilter = null;
-
-                // Show main point cloud and hide all cached ones
                 window.main_pc.visible = true;
-                for (const [name, pointCloud] of this.manager.pointCloudCache.entries()) {
-                    const field = this.manager.fieldInstances.get(name);
-                    field.setActive(false);
-                    pointCloud.visible = false;
-                }
             }
         }));
 
@@ -483,6 +526,7 @@ export class FieldManager {
         this.fieldInstances = new Map(); // Store Field instances
         this.constellations = new Map(); // Store Constellation instances
         this.intersectionMode = null; // Store { firstField, firstMesh, firstConstellation }
+        this.allowIndependentClouds = false; // Universal flag to control independent cloud switching
     }
 
     /**
@@ -491,7 +535,7 @@ export class FieldManager {
      */
     loadFields() {
         return new Promise((resolve, reject) => {
-            $.getJSON('/data/fields.json', (data) => {
+            $.getJSON('/data/fields.json?v=' + MESH_VERSION, (data) => {
                 this.fields = data.fields;
                 this.top_level = data.top_level;
                 this.subfield_colors = data.subfield_colors;
@@ -570,7 +614,12 @@ export class FieldManager {
      * @param {Function} callback - Callback function when point cloud is loaded
      */
     loadFieldPointCloud(S, callback) {
-        window.viewer.loadPointCloud(`/data/pointclouds/${S}/metadata.json`, (pc) => {
+        const fieldInstance = this.fieldInstances.get(S);
+        const basePath = (this.allowIndependentClouds && fieldInstance.useIndependentCloud) ? 
+            '/data/pointclouds_independent/' : 
+            '/data/pointclouds/';
+            
+        window.viewer.loadPointCloud(`${basePath}${S}/metadata.json`, (pc) => {
             // Configure point cloud material
             const material = pc.material;
             material.size = 0.08;
@@ -1016,7 +1065,7 @@ export class FieldManager {
 
         const loader = new STLLoader();
         loader.load(
-            `/data/field_meshes/${fieldName}.stl`,
+            `/data/field_meshes/${fieldName}.stl?v=${MESH_VERSION}`,
             (geometry) => {
                 const mesh = new THREE.Mesh(geometry, material);
                 mesh.scale.set(100, 100, 100);
