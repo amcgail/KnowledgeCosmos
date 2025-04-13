@@ -2,7 +2,8 @@ from .common import *
 
 __all__ = [
     'GetYears',
-    'GetIds'
+    'GetIds',
+    'GetNonEnglishIDs'
 ]
 
 @cache
@@ -68,5 +69,46 @@ def GetIds():
     ids = set(ids)
     return ids
 
+@cache
+def GetNonEnglishIDs():
+    """Returns a set of MAG IDs for papers with English titles.
+    Uses a simple ASCII-based approach to detect English titles."""
+    import gzip
+    from io import BytesIO
+    from tqdm import tqdm
+
+    paperfn = DATA_FOLDER / 'MAG' / 'Papers.txt.gz'
+    non_english_ids = set()
+
+    def is_english_title(title):
+        if not title:  # Skip empty titles
+            return False
+        ascii_count = sum(1 for c in title if ord(c) < 128)
+        return (ascii_count / len(title)) > 0.9
+
+    # Step 1: open outer gzip file
+    with gzip.open(paperfn, "rb") as outer:
+        # Step 2: wrap the outer stream as a file-like buffer for inner gzip
+        inner_stream = gzip.open(outer, mode="rt", encoding="utf-8", errors="replace")
+
+        # Step 3: stream lines from inner file
+        pbar = tqdm(enumerate(inner_stream), total=int(230e6), desc="Processing papers")
+        for i, line in pbar:
+            if i % 1000000 == 0:
+                pbar.set_description(f"Collected {len(non_english_ids)/1e6:.1f}M non-English papers")
+            
+            parts = line.split('\t')
+            if len(parts) < 3:  # Skip malformed lines
+                continue
+                
+            magid_str = parts[0]
+            title = parts[5]  # Title is in the 6th column
+
+            if not is_english_title(title):
+                non_english_ids.add(int(magid_str))
+
+    return non_english_ids
+
 if __name__ == '__main__':
     print(len(GetYears()))
+    print(len(GetNonEnglishIDs()))
