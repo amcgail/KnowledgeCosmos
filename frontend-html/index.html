@@ -22,6 +22,7 @@
     <link rel="stylesheet" href="css/slice.css">
     <link rel="stylesheet" href="css/slider.css">
     <link rel="stylesheet" href="css/fieldManager.css">
+    <link rel="stylesheet" href="css/tour.css">
 </head>
 
 <body>
@@ -232,6 +233,51 @@
     <div class="loading" style="display:none;">
         <div class="spinner"></div>
         Loading papers...
+    </div>
+
+    <!-- Tour UI Elements -->
+    <div id="tour-ui" style="display:none;">
+        <div class="tour-overlay"></div>
+        <div class="click-animation-overlay"></div>
+        <div class="tour-message">
+            <div class="close-tour-button">✕</div>
+            <h3 class="step-title"></h3>
+            <p class="step-message"></p>
+            <p class="next-reminder"><strong>Click "Next Step" to continue →</strong></p>
+            <div class="tour-nav-buttons">
+                <button class="tour-button tour-prev">Previous</button>
+                <button class="tour-button tour-next">Next Step ➜</button>
+            </div>
+        </div>
+        <div class="tour-contents">
+            <h3 style="margin-top: 0; text-align: center; margin-bottom: 15px;">Tour Contents</h3>
+            <!-- Phase elements will be added dynamically -->
+        </div>
+        <div class="key-visuals-container" style="display: none;">
+            <div class="arrow-keys-container">
+                <!-- Up arrow -->
+                <div class="key-visual" id="arrow-up-key">
+                    <i class="fas fa-arrow-up"></i>
+                </div>
+                <!-- Middle row (left, down, right) -->
+                <div class="arrow-keys-row">
+                    <div class="key-visual" id="arrow-left-key">
+                        <i class="fas fa-arrow-left"></i>
+                    </div>
+                    <div class="key-visual" id="arrow-down-key">
+                        <i class="fas fa-arrow-down"></i>
+                    </div>
+                    <div class="key-visual" id="arrow-right-key">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Celeste Helper - Used for both helper and tour modes -->
+    <div class="celeste-helper" title="Click for a guided tour" style="display:none; bottom: -2px;">
+        <div class="celeste-tooltip">Need help? Click me for a tour!</div>
     </div>
 
     <!-- External Libraries -->

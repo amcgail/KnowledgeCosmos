@@ -2,6 +2,7 @@ import * as THREE from "/libs/three.js/build/three.module.js";
 import { Controls } from './controls.js';
 import { PaperManager } from './paper.js';
 import { UIManager } from './ui.js';
+import { TourController } from './tourController.js';
 import { STLLoader } from "/libs/three.js/loaders/STLLoader.js";
 
 const SCROLL_SPEED = 2;
@@ -34,6 +35,9 @@ export class Viewer {
         this.fullMesh = null;
 
         this.recentDistance = 0;
+
+        // Create tour controller
+        this.tourController = new TourController(this);
 
         // Make skip_intro globally accessible
         window.skip_intro = () => this.skip_intro();
@@ -638,22 +642,39 @@ export class Viewer {
                     
                     // Add begin button when circle is complete
                     if (circleProgress >= 1) {
-                        // Remove existing begin button if any
-                        const existingButton = infoElement.querySelector('.begin-button');
-                        if (!existingButton) {
-                            const beginButton = document.createElement('button');
-                            beginButton.textContent = 'Click here to begin';
-                            beginButton.className = 'begin-button';
-                            beginButton.onclick = () => this.doneWithIntro();
-                            infoElement.appendChild(beginButton);
+                        // Remove existing button container if any
+                        const existingContainer = infoElement.querySelector('.begin-buttons-container');
+                        if (!existingContainer) {
+                            // Create a container for the buttons
+                            const buttonsContainer = document.createElement('div');
+                            buttonsContainer.className = 'begin-buttons-container';
+                            
+                            // Create "I'm ready to explore" button
+                            const exploreButton = document.createElement('button');
+                            exploreButton.textContent = "I'm ready to explore";
+                            exploreButton.className = 'begin-button explore-button';
+                            exploreButton.onclick = () => this.doneWithIntro();
+                            
+                            // Create "Take me on a tour" button
+                            const tourButton = document.createElement('button');
+                            tourButton.textContent = "Take me on a tour";
+                            tourButton.className = 'begin-button tour-button';
+                            tourButton.onclick = () => this.startTour(); // Start the tour
+                            
+                            // Add buttons to container
+                            buttonsContainer.appendChild(exploreButton);
+                            buttonsContainer.appendChild(tourButton);
+                            
+                            // Add container to the info element
+                            infoElement.appendChild(buttonsContainer);
                         }
 
                         $('.progress-container').toggleClass('visible', false);
                     } else {
-                        // Remove begin button if it exists
-                        const beginButton = infoElement.querySelector('.begin-button');
-                        if (beginButton) {
-                            beginButton.remove();
+                        // Remove button container if it exists
+                        const buttonsContainer = infoElement.querySelector('.begin-buttons-container');
+                        if (buttonsContainer) {
+                            buttonsContainer.remove();
                         }
 
                         $('.progress-container').toggleClass('visible', true);
@@ -689,7 +710,52 @@ export class Viewer {
         // Remove scroll event listener
         window.removeEventListener('wheel', this.handleScrollBound);
         
+        // Clear intro content
         document.getElementById('prettier_game_info').innerHTML = '';
+        
+        // Get the existing Celeste helper and initialize it
+        const celesteHelper = document.querySelector('.celeste-helper');
+        if (celesteHelper) {
+            // Show Celeste
+            celesteHelper.style.display = 'block';
+            
+            // Get the tooltip
+            const tooltip = celesteHelper.querySelector('.celeste-tooltip');
+            
+            // Show tooltip after a delay, then hide after a few seconds
+            if (tooltip) {
+                setTimeout(() => {
+                    tooltip.classList.add('visible');
+                    
+                    // Hide after 5 seconds
+                    setTimeout(() => {
+                        tooltip.classList.remove('visible');
+                    }, 5000);
+                }, 2000);
+            }
+            
+            // Load Celeste SVG if not already loaded
+            if (!celesteHelper.querySelector('svg')) {
+                fetch('/static/celeste.svg')
+                    .then(response => response.text())
+                    .then(svgText => {
+                        // Keep the tooltip if it exists
+                        const tooltip = celesteHelper.querySelector('.celeste-tooltip');
+                        celesteHelper.innerHTML = svgText;
+                        if (tooltip) celesteHelper.appendChild(tooltip);
+                        
+                        // Ensure click event exists
+                        if (!celesteHelper._hasClickEvent) {
+                            celesteHelper.addEventListener('click', () => {
+                                this.startTour(); // Start the tour
+                            });
+                            celesteHelper._hasClickEvent = true;
+                        }
+                    });
+            }
+        }
+        
+        // Show all menu elements and UI components
         document.querySelectorAll('#menu div').forEach(el => el.style.display = 'block');
         document.getElementById('skip_intro').style.display = 'none';
         document.getElementById('tips_link').style.display = 'block';
@@ -794,6 +860,7 @@ export class Viewer {
             })
             .start();
         
+        // Use the doneWithIntro method to ensure Celeste is created consistently
         this.doneWithIntro();
         this.viewer.setPointBudget(2_000_000);
     }
@@ -935,6 +1002,14 @@ export class Viewer {
             lookAtPoint.y,
             lookAtPoint.z
         );
+    }
+
+    startTour() {
+        // Clean up intro elements
+        document.getElementById('prettier_game_info').innerHTML = '';
+        
+        // Start the tour
+        this.tourController.startTour();
     }
 
 } 

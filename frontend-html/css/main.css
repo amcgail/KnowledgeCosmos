@@ -162,13 +162,19 @@ body {
     animation: bounce 2s infinite;
 }
 
-.begin-button {
+.begin-buttons-container {
     position: fixed;
     bottom: 20%;
     left: 50%;
     transform: translateX(-50%);
+    display: flex;
+    gap: 20px;
+    z-index: 1000;
+}
+
+.begin-button {
     padding: 15px 30px;
-    font-size: 20px;
+    font-size: 18px;
     font-family: 'cyber', Arial, sans-serif;
     color: white;
     background: transparent;
@@ -176,16 +182,33 @@ body {
     border-radius: 5px;
     cursor: pointer;
     transition: all 0.3s ease;
-    z-index: 1000;
 }
 
 .begin-button:hover {
     background: rgba(255, 255, 255, 0.1);
-    transform: translateX(-50%) scale(1.05);
+    transform: scale(1.05);
 }
 
 .begin-button:active {
-    transform: translateX(-50%) scale(0.95);
+    transform: scale(0.95);
+}
+
+.explore-button {
+    background: rgba(70, 130, 180, 0.2);
+    border-color: steelblue;
+}
+
+.explore-button:hover {
+    background: rgba(70, 130, 180, 0.3);
+}
+
+.tour-button {
+    background: rgba(60, 179, 113, 0.2);
+    border-color: mediumseagreen;
+}
+
+.tour-button:hover {
+    background: rgba(60, 179, 113, 0.3);
 }
 
 @keyframes bounce {
@@ -375,7 +398,7 @@ body {
     border-radius: 4px;
     font-size: 12px;
     font-family: monospace;
-    z-index: 1000;
+    z-index: 999;
 }
 
 .position-display span {
@@ -449,3 +472,5 @@ body {
 .paper-details:not(:visible) + .paper-sidebar-toggle {
     display: none;
 }
+
+/* Celeste Helper styles moved to tour.css */

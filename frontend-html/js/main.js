@@ -80,4 +80,40 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#comment_link').hide();
     $('#menu .title').hide();
     $('#menu .item').hide();
+
+    // Initialize the tour helper
+    initTourHelper();
 });
+
+// Initialize the tour helper
+function initTourHelper() {
+    const celesteHelper = document.querySelector('.celeste-helper');
+    if (celesteHelper) {
+        // Keep Celeste hidden by default on page load
+        celesteHelper.style.display = 'none';
+        
+        // Add event listeners for tooltip
+        celesteHelper.addEventListener('mouseenter', () => {
+            const tooltip = celesteHelper.querySelector('.celeste-tooltip');
+            if (tooltip) tooltip.classList.add('visible');
+        });
+        
+        celesteHelper.addEventListener('mouseleave', () => {
+            const tooltip = celesteHelper.querySelector('.celeste-tooltip');
+            if (tooltip) tooltip.classList.remove('visible');
+        });
+        
+        // Load SVG if not already loaded
+        if (!celesteHelper.querySelector('svg')) {
+            fetch('/static/celeste.svg')
+                .then(response => response.text())
+                .then(svgContent => {
+                    // Keep the tooltip
+                    const tooltip = celesteHelper.querySelector('.celeste-tooltip');
+                    celesteHelper.innerHTML = svgContent;
+                    if (tooltip) celesteHelper.appendChild(tooltip);
+                })
+                .catch(error => console.error('Failed to load Celeste SVG:', error));
+        }
+    }
+}
