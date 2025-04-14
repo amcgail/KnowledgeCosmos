@@ -80,8 +80,16 @@ export class TourController {
             this.currentStep,
             (stepIndex) => {
                 this.currentStep = stepIndex;
-                const { stepIndex: stepInPhase } = this.getCurrentStepInfo();
-                this.showStep(stepInPhase);
+                // Get the correct step information using the absolute index
+                const stepInfo = this.tourContent.getPhaseAndStep(stepIndex);
+                if (stepInfo) {
+                    this.showStep(stepInfo.stepIndex);
+                } else {
+                    console.warn('Invalid step index:', stepIndex);
+                    // Fallback to first step
+                    this.currentStep = 0;
+                    this.showStep(0);
+                }
             }
         );
         
@@ -143,31 +151,23 @@ export class TourController {
                 this.isNavigating = true;
                 this.tourUI.disableNavigationButtons(true);
                 
-                // Set a timeout to re-enable buttons when animation completes
-                // Use a default duration of 8000ms or match the action's delay if longer
-                const animationDuration = (currentStep.action.delay || 4000) + 4000;
-                
-                // Re-enable buttons after animation completes
-                const timerId = setTimeout(() => {
+                // Perform the step's action with a callback to re-enable navigation
+                this.performAction(currentStep.action, () => {
                     this.isNavigating = false;
                     this.tourUI.disableNavigationButtons(false);
-                }, animationDuration);
-                
-                this.animations.trackTimer(timerId);
-                
-                // Perform the step's action
-                this.performAction(currentStep.action);
+                });
             }
-        }, 100);
+        }, 0);
     }
 
     /**
      * Perform a tour action
      */
-    performAction(action) {
+    performAction(action, completionCallback) {
         // Ensure action is valid
         if (!action || !action.type) {
             console.warn('Invalid action provided to performAction:', action);
+            if (completionCallback) completionCallback();
             return;
         }
         
@@ -175,6 +175,7 @@ export class TourController {
         if (action.type === 'sequence') {
             if (!action.actions || !Array.isArray(action.actions) || action.actions.length === 0) {
                 console.warn('Invalid sequence action provided:', action);
+                if (completionCallback) completionCallback();
                 return;
             }
             
@@ -182,7 +183,10 @@ export class TourController {
             let currentIndex = 0;
             
             const performNextAction = () => {
-                if (currentIndex >= action.actions.length || !this.isActive) return;
+                if (currentIndex >= action.actions.length || !this.isActive) {
+                    if (completionCallback) completionCallback();
+                    return;
+                }
                 
                 const currentAction = action.actions[currentIndex];
                 
@@ -192,23 +196,26 @@ export class TourController {
                 }
                 
                 // Perform current action
-                this.performAction(currentAction);
-                
-                // Move to next index
-                currentIndex++;
-                
-                // Schedule next action after delay if there are more actions
-                if (currentIndex < action.actions.length) {
-                    const previousAction = action.actions[currentIndex - 1];
-                    // Use sequenceDelay for timing between actions or fall back to a default
-                    const delay = previousAction.sequenceDelay || 1500;
+                this.performAction(currentAction, () => {
+                    // Move to next index
+                    currentIndex++;
                     
-                    console.log(`Scheduling next action in sequence after ${delay}ms delay`);
-                    
-                    // Track the timer to ensure it gets cleaned up properly
-                    const timerId = setTimeout(performNextAction, delay);
-                    this.animations.trackTimer(timerId);
-                }
+                    // Schedule next action after delay if there are more actions
+                    if (currentIndex < action.actions.length) {
+                        const previousAction = action.actions[currentIndex - 1];
+                        // Use sequenceDelay for timing between actions or fall back to a default
+                        const delay = previousAction.sequenceDelay || 1500;
+                        
+                        console.log(`Scheduling next action in sequence after ${delay}ms delay`);
+                        
+                        // Track the timer to ensure it gets cleaned up properly
+                        const timerId = setTimeout(performNextAction, delay);
+                        this.animations.trackTimer(timerId);
+                    } else {
+                        // All actions in sequence complete
+                        if (completionCallback) completionCallback();
+                    }
+                });
             };
             
             // Start the sequence after a small delay
@@ -219,8 +226,22 @@ export class TourController {
         
         // Handle JavaScript function execution
         if (action.type === 'jsFunction') {
-            if (!action.functionName) {
-                console.warn('Missing function name in jsFunction action:', action);
+            if (typeof action.functionToExecute === 'function') {
+                // Execute the directly passed function
+                try {
+                    const delay = action.delay || 50;
+                    this.animations.trackTimer(setTimeout(() => {
+                        action.functionToExecute();
+                        if (completionCallback) completionCallback();
+                    }, delay));
+                } catch (error) {
+                    console.error('Error executing function:', error);
+                    if (completionCallback) completionCallback();
+                }
+                return;
+            } else if (!action.functionName) {
+                console.warn('Missing function reference in jsFunction action:', action);
+                if (completionCallback) completionCallback();
                 return;
             }
             
@@ -239,6 +260,7 @@ export class TourController {
                         } catch (evalError) {
                             console.error('Error executing custom function:', evalError);
                         }
+                        if (completionCallback) completionCallback();
                         return;
                     }
                     
@@ -270,12 +292,15 @@ export class TourController {
                         } else {
                             func.call(context);
                         }
+                        if (completionCallback) completionCallback();
                     } else {
                         console.warn(`Function ${action.functionName} is not callable:`, func);
+                        if (completionCallback) completionCallback();
                     }
                 }, delay));
             } catch (error) {
                 console.error(`Error executing function ${action.functionName}:`, error);
+                if (completionCallback) completionCallback();
             }
             return;
         }
@@ -283,24 +308,36 @@ export class TourController {
         // Small delay to ensure UI is ready
         setTimeout(() => {
             try {
+                // Track if an action has an internal completion callback
+                let actionHasCallback = false;
+                
                 switch (action.type) {
                     case 'keyboardEvent':
-                        this.setupKeyboardAction(action);
+                        this.setupKeyboardAction(action, completionCallback);
+                        actionHasCallback = true;
                         break;
                     case 'mouseEvent':
                         // Future implementation
                         break;
                     case 'doubleClickEvent':
-                        this.setupDoubleClickAction(action);
+                        this.setupDoubleClickAction(action, completionCallback);
+                        actionHasCallback = true;
                         break;
                     case 'clickEvent':
-                        this.actions.setupClickAction(action, this.isActive, this.tourUI.clickAnimationOverlay);
+                        this.actions.setupClickAction(action, this.isActive, this.tourUI.clickAnimationOverlay, completionCallback);
+                        actionHasCallback = true;
                         break;
                     case 'rotateEvent':
-                        this.setupRotateAction(action);
+                        this.setupRotateAction(action, completionCallback);
+                        actionHasCallback = true;
                         break;
                     case 'inputField':
-                        this.actions.setupInputField(action, this.isActive);
+                        this.actions.setupInputField(action, this.isActive, completionCallback);
+                        actionHasCallback = true;
+                        break;
+                    case 'findPaper':
+                        this.actions.findAndSelectPaper(action, this.isActive, completionCallback);
+                        actionHasCallback = true;
                         break;
                     case 'rangeSlider':
                         // Future implementation
@@ -308,8 +345,17 @@ export class TourController {
                     default:
                         console.warn(`Unknown action type: ${action.type}`);
                 }
+                
+                // For actions that don't have internal callbacks yet, use a timeout
+                if (!actionHasCallback && completionCallback) {
+                    const fallbackDuration = (action.delay || 4000) + 4000;
+                    const fallbackTimerId = setTimeout(completionCallback, fallbackDuration);
+                    this.animations.trackTimer(fallbackTimerId);
+                }
             } catch (error) {
                 console.error(`Error performing action ${action.type}:`, error);
+                // Ensure callback is called even if there's an error
+                if (completionCallback) completionCallback();
             }
         }, action.delay || 50); // Use action.delay if provided, otherwise a small default
     }
@@ -317,10 +363,11 @@ export class TourController {
     /**
      * Setup keyboard action
      */
-    setupKeyboardAction(action) {
+    setupKeyboardAction(action, completionCallback) {
         // Ensure we have valid keys
         if (!action.keys || !Array.isArray(action.keys) || action.keys.length === 0) {
             console.warn('Invalid keys in keyboard action:', action);
+            if (completionCallback) completionCallback();
             return;
         }
         
@@ -336,7 +383,7 @@ export class TourController {
         };
         
         // Demo the key presses in sequence
-        this.demoKeyPresses(keyElements, action);
+        this.demoKeyPresses(keyElements, action, completionCallback);
         
         // Register keyboard events for all arrow keys
         const keyListener = (event) => {
@@ -363,8 +410,11 @@ export class TourController {
     /**
      * Demo key presses animation
      */
-    demoKeyPresses(keyElements, action) {
-        if (!this.isActive) return;
+    demoKeyPresses(keyElements, action, completionCallback) {
+        if (!this.isActive) {
+            if (completionCallback) completionCallback();
+            return;
+        }
         
         // Determine sequence based on step info
         const currentStepInfo = this.getCurrentStepInfo();
@@ -416,7 +466,10 @@ export class TourController {
         let index = 0;
         
         const playNextDemo = () => {
-            if (!this.isActive || index >= demoSequence.length) return;
+            if (!this.isActive || index >= demoSequence.length) {
+                if (completionCallback) completionCallback();
+                return;
+            }
             
             const demo = demoSequence[index];
             const keyElement = keyElements[demo.key];
@@ -437,6 +490,9 @@ export class TourController {
                     if (index < demoSequence.length && this.isActive) {
                         const nextKeyTimerId = setTimeout(playNextDemo, 300);
                         this.animations.trackTimer(nextKeyTimerId);
+                    } else {
+                        // Sequence completed
+                        if (completionCallback) completionCallback();
                     }
                 }, demo.duration);
                 
@@ -447,6 +503,9 @@ export class TourController {
                 if (index < demoSequence.length && this.isActive) {
                     const skipKeyTimerId = setTimeout(playNextDemo, 300);
                     this.animations.trackTimer(skipKeyTimerId);
+                } else {
+                    // Sequence completed
+                    if (completionCallback) completionCallback();
                 }
             }
         };
@@ -458,7 +517,7 @@ export class TourController {
     /**
      * Setup double click action
      */
-    setupDoubleClickAction(action) {
+    setupDoubleClickAction(action, completionCallback) {
         // Create mouse cursor visual
         const cursor = document.createElement('div');
         cursor.className = 'mouse-cursor';
@@ -485,12 +544,20 @@ export class TourController {
         
         // Start double-click animation after a delay
         const timerId = this.animations.trackTimer(setTimeout(() => {
-            if (!this.isActive) return; // Check if tour is still active
+            if (!this.isActive) {
+                if (completionCallback) completionCallback();
+                return; // Check if tour is still active
+            }
             
             this.animateDoubleClick(cursor, centerX, centerY, () => {
                 // Perform the double-click effect
                 if (this.isActive) { // Verify tour is still active before starting animation
-                    this.animations.performJumpAnimation(this.viewer);
+                    this.animations.performJumpAnimation(this.viewer, () => {
+                        // Animation complete, call the completion callback
+                        if (completionCallback) completionCallback();
+                    });
+                } else {
+                    if (completionCallback) completionCallback();
                 }
             });
         }, 1500));
@@ -520,8 +587,11 @@ export class TourController {
     /**
      * Setup rotate action
      */
-    setupRotateAction(action) {
-        if (!this.tourUI.clickAnimationOverlay) return;
+    setupRotateAction(action, completionCallback) {
+        if (!this.tourUI.clickAnimationOverlay) {
+            if (completionCallback) completionCallback();
+            return;
+        }
         
         // Clear animation overlay
         this.tourUI.clickAnimationOverlay.innerHTML = '';
@@ -553,6 +623,11 @@ export class TourController {
         
         // Start rotation animation
         const rotateTimerId = setTimeout(() => {
+            if (!this.isActive) {
+                if (completionCallback) completionCallback();
+                return;
+            }
+            
             // First move cursor to the edge of the circle 
             // We'll place it at the rightmost point of the circle (angle 0)
             const targetX = centerX + radius;
@@ -645,6 +720,9 @@ export class TourController {
                                         segment.parentNode.removeChild(segment);
                                     }
                                 });
+                                
+                                // Animation complete, call the completion callback
+                                if (completionCallback) completionCallback();
                             }, 500);
                             this.animations.trackTimer(cleanupTimerId);
                         }

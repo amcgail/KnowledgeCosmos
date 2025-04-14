@@ -254,21 +254,26 @@ export class TourAnimations {
     /**
      * Perform a jumping animation with the camera
      */
-    performJumpAnimation(viewer) {
-        if (!viewer || !viewer.viewer) return;
+    performJumpAnimation(viewer, callback) {
+        if (!viewer || !viewer.viewer) {
+            if (callback) callback();
+            return;
+        }
         
         try {
             // Get current camera position
             const camera = viewer.viewer.scene.getActiveCamera();
-            if (!camera) return;
-            
-            const currentPosition = camera.position.clone();
+            if (!camera) {
+                if (callback) callback();
+                return;
+            }
             
             // Get camera's forward direction
             const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
             
             // Calculate target position (jump forward)
             const jumpDistance = 300; // Jump distance in units
+            const currentPosition = camera.position.clone();
             const targetPosition = currentPosition.clone().add(forward.multiplyScalar(jumpDistance));
             
             // Store initial position values for animation
@@ -341,12 +346,18 @@ export class TourAnimations {
                     }
                 } catch (error) {
                     console.error('Error updating camera position:', error);
+                    if (callback) callback();
                     return; // Stop animation if error
                 }
                 
                 // Continue animation if not complete
                 if (progress < 1) {
                     const animationId = this.trackAnimationFrame(requestAnimationFrame(moveCamera));
+                } else {
+                    // Animation is complete, call the callback
+                    this.trackTimer(setTimeout(() => {
+                        if (callback) callback();
+                    }, 200)); // Small delay to ensure visual effects finish
                 }
             };
             
@@ -356,6 +367,7 @@ export class TourAnimations {
             return { flash, streaks };
         } catch (error) {
             console.error('Error in performJumpAnimation:', error);
+            if (callback) callback();
             return null;
         }
     }

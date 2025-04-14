@@ -82,14 +82,14 @@ export class PaperManager {
                 sidebar.removeClass('collapsed');
                 $('#potree_render_area').css('right', '400px');
                 $('.sidebar-toggle').css('right', '400px');
-                $('.fa-chevron-left').hide();
-                $('.fa-chevron-right').show();
+                $('.fa-chevron-left').show();
+                $('.fa-chevron-right').hide();
             } else {
                 sidebar.addClass('collapsed');
                 $('#potree_render_area').css('right', '0');
                 $('.sidebar-toggle').css('right', '0');
-                $('.fa-chevron-right').hide();
-                $('.fa-chevron-left').show();
+                $('.fa-chevron-right').show();
+                $('.fa-chevron-left').hide();
             }
         });
     }

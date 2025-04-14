@@ -171,18 +171,6 @@
     transform: none;
 }
 
-.tour-message.speech-bubble::after {
-    content: '';
-    position: absolute;
-    bottom: -15px;
-    left: 30px;
-    width: 0;
-    height: 0;
-    border-left: 15px solid transparent;
-    border-right: 15px solid transparent;
-    border-top: 15px solid rgba(31, 134, 186, 0.8);
-}
-
 .tour-message h3 {
     margin: 0 0 10px 0;
     font-size: 20px;
@@ -196,7 +184,7 @@
 }
 
 /* Tour Navigation Buttons */
-.tour-nav-buttons {
+.tour-nav-buttons .button-row {
     display: flex;
     justify-content: space-between;
     margin-top: 15px;
@@ -393,70 +381,98 @@
     gap: 12px;
     z-index: 2010;
     pointer-events: none;
-    background-color: rgba(0, 0, 0, 0.5);
-    padding: 15px;
-    border-radius: 12px;
-    border: 1px solid rgba(100, 217, 255, 0.3);
+    background-color: rgba(0, 0, 0, 0.6);
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid rgba(100, 217, 255, 0.4);
+    backdrop-filter: blur(4px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .arrow-keys-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
 }
 
 .arrow-keys-row {
     display: flex;
-    gap: 5px;
+    gap: 6px;
 }
 
 .key-visual {
     width: 60px;
     height: 60px;
-    background-color: rgba(30, 30, 30, 0.9);
-    border: 2px solid rgba(180, 180, 180, 0.8);
+    background: linear-gradient(to bottom, #3a3a3a, #222222);
+    border: 1px solid #555555;
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 24px;
     color: white;
-    box-shadow: 0 4px 0 rgba(80, 80, 80, 0.8);
-    transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.1s ease, border-color 0.2s ease;
+    box-shadow: 
+        0 4px 0 #151515,
+        0 5px 5px rgba(0, 0, 0, 0.3),
+        inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease, border-color 0.2s ease;
     position: relative;
+    cursor: default;
+    user-select: none;
 }
 
 .key-visual:after {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border-radius: 6px;
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    height: 30%;
+    border-radius: 4px 4px 12px 12px;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.03));
     pointer-events: none;
+    opacity: 0.7;
 }
 
 .key-visual.pressed {
-    transform: translateY(4px);
-    box-shadow: 0 0 0 rgba(80, 80, 80, 0.8);
-    background-color: rgba(100, 217, 255, 0.4);
+    transform: translateY(3px);
+    box-shadow: 
+        0 1px 0 #151515,
+        0 2px 3px rgba(0, 0, 0, 0.3),
+        inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    background: linear-gradient(to bottom, #1e4d60, #0d3b4d);
     border-color: rgba(100, 217, 255, 0.8);
     animation: key-glow 0.5s ease-out;
 }
 
 @keyframes key-glow {
-    0% { box-shadow: 0 0 5px rgba(100, 217, 255, 0.5); }
-    50% { box-shadow: 0 0 20px rgba(100, 217, 255, 0.8); }
-    100% { box-shadow: 0 0 5px rgba(100, 217, 255, 0.5); }
+    0% { box-shadow: 0 1px 0 #151515, 0 2px 3px rgba(0, 0, 0, 0.3), 0 0 5px rgba(100, 217, 255, 0.5); }
+    50% { box-shadow: 0 1px 0 #151515, 0 2px 3px rgba(0, 0, 0, 0.3), 0 0 20px rgba(100, 217, 255, 0.8); }
+    100% { box-shadow: 0 1px 0 #151515, 0 2px 3px rgba(0, 0, 0, 0.3), 0 0 5px rgba(100, 217, 255, 0.5); }
 }
 
 .key-visual i {
-    font-size: 24px;
+    font-size: 22px;
     color: rgba(255, 255, 255, 0.9);
     filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3));
+    text-shadow: 0 0 5px rgba(100, 217, 255, 0.3);
+}
+
+.key-visual#arrow-up-key i {
+    transform: translateY(-2px);
+}
+
+.key-visual#arrow-down-key i {
+    transform: translateY(2px);
+}
+
+.key-visual#arrow-left-key i {
+    transform: translateX(-2px);
+}
+
+.key-visual#arrow-right-key i {
+    transform: translateX(2px);
 }
 
 /* Mouse Cursor */
@@ -682,8 +698,8 @@
 
 .close-tour-button {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 2px;
+    right: 2px;
     width: 24px;
     height: 24px;
     background-color: rgba(255, 255, 255, 0.8);
@@ -703,4 +719,51 @@
     background-color: rgba(255, 255, 255, 1);
     transform: scale(1.1);
     color: #000;
+}
+
+/* Paper highlight circle */
+.paper-highlight-circle {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: transparent;
+    border: 3px solid #fff;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+    z-index: 1000;
+    pointer-events: none;
+}
+
+/* Pulse animation for paper highlight */
+.paper-highlight-circle.pulse {
+    animation: pulse-animation 1.5s infinite;
+}
+
+@keyframes pulse-animation {
+    0% {
+        transform: scale(0.8);
+        opacity: 0.7;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(0.8);
+        opacity: 0.7;
+    }
+}
+
+/* Fade out animation */
+.paper-highlight-circle.fade-out {
+    animation: fade-out 1s forwards;
+}
+
+@keyframes fade-out {
+    0% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
 } 

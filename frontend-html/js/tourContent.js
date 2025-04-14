@@ -23,7 +23,7 @@ export class TourContent {
                             type: "keyboardEvent",
                             keys: ["arrowleft", "arrowright", "arrowup", "arrowdown"],
                             showKeyVisuals: true,
-                            delay: 4000
+                            delay: 2500
                         }
                     },
                     {
@@ -34,7 +34,7 @@ export class TourContent {
                             type: "keyboardEvent",
                             keys: ["arrowleft", "arrowright", "arrowup", "arrowdown"],
                             showKeyVisuals: true,
-                            delay: 4000
+                            delay: 2500
                         }
                     },
                     {
@@ -43,7 +43,7 @@ export class TourContent {
                         arrangement: 3,  // Speech bubble
                         action: {
                             type: "doubleClickEvent",
-                            delay: 4000
+                            delay: 2500
                         }
                     },
                     {
@@ -52,7 +52,7 @@ export class TourContent {
                         arrangement: 3,  // Speech bubble
                         action: {
                             type: "rotateEvent",
-                            delay: 4000
+                            delay: 2500
                         }
                     },
                     {
@@ -62,7 +62,7 @@ export class TourContent {
                         action: {
                             type: "clickEvent",
                             element: "#home-button",
-                            delay: 4000
+                            delay: 2500
                         }
                     }
                 ]
@@ -77,7 +77,7 @@ export class TourContent {
                         action: {
                             type: "clickEvent",
                             element: "#label-toggle",
-                            delay: 4000
+                            delay: 2500
                         }
                     },
                     {
@@ -88,7 +88,7 @@ export class TourContent {
                             type: "clickEvent",
                             element: "#annotation-computer-science",
                             focusFirst: true,
-                            delay: 4000
+                            delay: 2500
                         }
                     },
                     {
@@ -109,7 +109,7 @@ export class TourContent {
                         action: {
                             type: "clickEvent",
                             element: ".sidebar-toggle",
-                            delay: 4000
+                            delay: 2500
                         }
                     },
                     {
@@ -123,7 +123,7 @@ export class TourContent {
                                 ":nth-child(5 of .swatch)",
                                 ":nth-child(9 of .swatch)",
                             ],
-                            delay: 4000
+                            delay: 2500
                         }
                     },
                     {
@@ -133,7 +133,7 @@ export class TourContent {
                         action: {
                             type: "clickEvent",
                             element: ".clear-selection.visible",
-                            delay: 4000
+                            delay: 2500
                         }
                     },
                     {
@@ -143,7 +143,7 @@ export class TourContent {
                         action: {
                             type: "clickEvent",
                             element: ".tab-btn[data-tab='constellations']",
-                            delay: 4000
+                            delay: 2500
                         }
                     },
                     {
@@ -155,7 +155,7 @@ export class TourContent {
                             inputField: "#field_lookup",
                             inputText: "Biology",
                             submitButton: "#field_add",
-                            delay: 4000
+                            delay: 2500
                         }
                     },
                     {
@@ -166,7 +166,18 @@ export class TourContent {
                             type: "clickEvent",
                             element: ".color-swatch-svg .triangle",
                             focusFirst: true,
-                            delay: 4000
+                            delay: 2500
+                        }
+                    },
+                    {
+                        title: "Exploring Machine Learning",
+                        message: "When taking a closer look at the relationships in the stars of papers, she clicks on the star on machine learning label to conjures an entire constellation from it—instant galaxy!",
+                        arrangement: 3,  // Speech bubble
+                        action: {
+                            type: "clickEvent",
+                            element: "#annotation-machine-learning",
+                            focusFirst: true,
+                            delay: 2500
                         }
                     },
                     {
@@ -177,7 +188,7 @@ export class TourContent {
                             type: "clickEvent",
                             element: "#const_legend .legend_item .link",
                             clickAll: true,
-                            delay: 4000
+                            delay: 2500
                         }
                     },
                     {
@@ -187,7 +198,7 @@ export class TourContent {
                         action: {
                             type: "clickEvent",
                             element: "#year-filter-toggle",
-                            delay: 4000
+                            delay: 2500
                         }
                     },
                     {
@@ -197,7 +208,7 @@ export class TourContent {
                         action: {
                             type: "clickEvent",
                             element: "#year-play",
-                            delay: 4000
+                            delay: 2500
                         }
                     },
                     {
@@ -212,28 +223,89 @@ export class TourContent {
                                     type: "clickEvent",
                                     element: "#year-play",
                                     delay: 1000,        // Wait 1s before starting the click
-                                    sequenceDelay: 3000  // Wait 3s before next action (increased from 2s)
+                                    sequenceDelay: 500
                                 },
                                 // Check if animation is paused before modifying the range
                                 {
                                     type: "jsFunction",
-                                    functionName: "function() { const isPaused = !$('#year-play').hasClass('playing'); if (!isPaused) { $('#year-play').click(); console.log('Forcing pause before changing year range'); } }",
+                                    functionToExecute: function() { 
+                                        const isPaused = !$('#year-play').hasClass('playing'); 
+                                        if (!isPaused) { 
+                                            $('#year-play').click(); 
+                                            console.log('Forcing pause before changing year range'); 
+                                        } 
+                                    },
                                     delay: 500,          // Wait 500ms before executing function
-                                    sequenceDelay: 2000   // Wait 2s before next action (increased from 1s)
+                                    sequenceDelay: 500   // Wait 500ms before next action
                                 },
-                                // Directly use a custom function to update the slider values
+                                // First set the lower end of the range (2003)
                                 {
                                     type: "jsFunction",
-                                    functionName: "function() { $('#year-range-slider').slider('values', [2003, 2023]); window.controls.yearFilter.updateYearRange(2003, 2023); }",
-                                    delay: 1000,          // Wait 1s before executing function (increased from 500ms)
-                                    sequenceDelay: 1000   // Wait 1s before next action
+                                    functionToExecute: function() { 
+                                        const currentValues = $('#year-range-slider').slider('values');
+                                        const startMax = currentValues[1];
+                                        const targetMax = 2023;
+                                        const duration = 1000; // 1 second animation
+                                        const startTime = Date.now();
+                                        
+                                        function animateMax() {
+                                            const elapsed = Date.now() - startTime;
+                                            const progress = Math.min(elapsed / duration, 1);
+                                            // Smooth easing function
+                                            const easeProgress = 0.5 - 0.5 * Math.cos(progress * Math.PI);
+                                            
+                                            const currentMax = startMax + (targetMax - startMax) * easeProgress;
+                                            $('#year-range-slider').slider('values', [currentValues[0], Math.round(currentMax)]);
+                                            window.controls.yearFilter.updateYearRange(currentValues[0], Math.round(currentMax));
+                                            
+                                            if (progress < 1) {
+                                                requestAnimationFrame(animateMax);
+                                            }
+                                        }
+                                        
+                                        animateMax();
+                                    },
+                                    delay: 500,
+                                    sequenceDelay: 1000  // Animation takes 1s
                                 },
-                                // Pause to let the animation settle
+                                // Wait 500ms between animations
                                 {
                                     type: "jsFunction",
-                                    functionName: "function() { console.log('Year filter updated to 2003-2023'); }",
-                                    delay: 200,
-                                    sequenceDelay: 1000
+                                    functionToExecute: function() {
+                                        // Just a pause between animations
+                                    },
+                                    delay: 0,
+                                    sequenceDelay: 500
+                                },
+                                // Then set the upper end of the range (2023)
+                                {
+                                    type: "jsFunction",
+                                    functionToExecute: function() { 
+                                        const currentValues = $('#year-range-slider').slider('values');
+                                        const startMin = currentValues[0];
+                                        const targetMin = 2000;
+                                        const duration = 1000; // 1 second animation
+                                        const startTime = Date.now();
+                                        
+                                        function animateMin() {
+                                            const elapsed = Date.now() - startTime;
+                                            const progress = Math.min(elapsed / duration, 1);
+                                            // Smooth easing function
+                                            const easeProgress = 0.5 - 0.5 * Math.cos(progress * Math.PI);
+                                            
+                                            const currentMin = startMin + (targetMin - startMin) * easeProgress;
+                                            $('#year-range-slider').slider('values', [Math.round(currentMin), currentValues[1]]);
+                                            window.controls.yearFilter.updateYearRange(Math.round(currentMin), currentValues[1]);
+                                            
+                                            if (progress < 1) {
+                                                requestAnimationFrame(animateMin);
+                                            }
+                                        }
+                                        
+                                        animateMin();
+                                    },
+                                    delay: 0,
+                                    sequenceDelay: 1000  // Animation takes 1s
                                 }
                             ]
                         }
@@ -265,20 +337,75 @@ export class TourContent {
                 steps: [
                     {
                         title: "Selecting Papers",
-                        message: "Hover over a paper to see its title, and click to view more details!",
+                        message: "She zips through and clicks on a glowing dot—each one is a research paper waiting to be discovered!",
                         arrangement: 2,  // Centered message
+                        action: {
+                            type: "findPaper",
+                            gridSize: 5,        // 5x5 grid = 121 test points
+                            gridSpacing: 80,    // 80px between test points
+                            delay: 1000         // Wait 1s before starting search
+                        }
+                    },
+                    {
+                        title: "Another Discovery",
+                        message: "Another paper catches her eye!",
+                        arrangement: 2,  // Centered message
+                        action: {
+                            type: "findPaper",
+                            gridSize: 5,
+                            gridSpacing: 80,
+                            delay: 1000
+                        }
+                    },
+                    {
+                        title: "Saving for Later",
+                        message: "This one she saves for later!",
+                        arrangement: 2,  // Centered message
+                        action: {
+                            type: "clickEvent",
+                            element: ".bookmark-btn",
+                            delay: 1000
+                        }
+                    },
+                    {
+                        title: "Finding Past Papers",
+                        message: "Oops! She forgot to save a previous paper from her freeform exploration. Thankfully, she uses the History tab to find it again.️ Crisis averted!",
+                        arrangement: 2,  // Centered message
+                        action: {
+                            type: "clickEvent",
+                            element: [
+                                ".sidebar-toggle", // bring the right panel back if needed
+                                ".tab-btn[data-tab='history']",
+                                "#history_list .history_item:nth-child(2)" // select the second item in the history list
+                            ],
+                            delay: 1000
+                        }
+                    },
+                    {
+                        title: "Going Home",
+                        message: "Now, It's YOUR Turn!",
+                        arrangement: 2,  // Centered message
+                        action: {
+                            type: "clickEvent",
+                            element: [
+                                ".sidebar-toggle", // hide the right panel
+                                ".paper-sidebar-toggle", // hide the paper sidebar
+                                "#year-filter-toggle", // turn off the year filter
+                                "#home-button", // go home
+                            ],
+                            delay: 1000
+                        }
+                    },
+                    {
+                        title: "Your Journey Awaits",
+                        message: "Inspired by her journey, Celeste is ready to dive even deeper. And now, so are you! The cosmos is vast, and there are so many discoveries waiting for you. Start exploring and see what connections you can uncover!",
+                        arrangement: 1,  // Center overlay
                         action: null
                     },
                     {
-                        title: "Paper Details",
-                        message: "The paper sidebar shows the abstract, authors, and publication information. You can bookmark papers for later!",
-                        arrangement: 2,  // Centered message
-                        action: null
-                    },
-                    {
-                        title: "Your Tour is Complete!",
-                        message: "You're now ready to explore The Knowledge Cosmos on your own. Happy researching!",
-                        arrangement: 1,  // Full overlay
+                        title: "Revisit the Tutorial",
+                        message: "And don't worry—if you want to revisit Celeste's journey, just click here to return to the tutorial.",
+                        arrangement: 1,  // Center overlay
                         action: null
                     }
                 ]

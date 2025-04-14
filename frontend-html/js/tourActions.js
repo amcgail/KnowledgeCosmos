@@ -5,6 +5,7 @@ export class TourActions {
     constructor(animationManager) {
         this.animations = animationManager;
         this.eventListeners = [];
+        this.animationOverlay = document.querySelector('.click-animation-overlay');
         this.setupHandlers();
     }
 
@@ -153,7 +154,7 @@ export class TourActions {
     /**
      * Handle click action on elements
      */
-    setupClickAction(action, isActive, clickAnimationOverlay) {
+    setupClickAction(action, isActive, clickAnimationOverlay, completionCallback) {
         // Handle dynamic selectors first
         action = this.setupElementSelectors(action);
         
@@ -164,7 +165,7 @@ export class TourActions {
         if (Array.isArray(action.element)) {
             // Add delay before starting
             const timerId = setTimeout(() => {
-                this.clickElementsSequentially(action.element, 0, null, isActive);
+                this.clickElementsSequentially(action.element, 0, null, isActive, completionCallback);
             }, initialDelay);
             this.animations.trackTimer(timerId);
             return;
@@ -179,7 +180,7 @@ export class TourActions {
                 
                 // Add delay before starting
                 const timerId = setTimeout(() => {
-                    this.clickElementsSequentially(elementArray, 0, null, isActive);
+                    this.clickElementsSequentially(elementArray, 0, null, isActive, completionCallback);
                 }, initialDelay);
                 this.animations.trackTimer(timerId);
                 return;
@@ -254,6 +255,11 @@ export class TourActions {
                         // For normal elements, use regular click
                         element.click();
                     }
+                    
+                    // Call the completion callback after a short delay to allow click to take effect
+                    this.animations.trackTimer(setTimeout(() => {
+                        if (completionCallback) completionCallback();
+                    }, 500));
                 });
             }, initialDelay);
             this.animations.trackTimer(clickTimerId);
@@ -264,9 +270,11 @@ export class TourActions {
                 const delayedElement = document.querySelector(action.element);
                 if (delayedElement) {
                     // Recursively try again with the same action
-                    this.setupClickAction(action, isActive, clickAnimationOverlay);
+                    this.setupClickAction(action, isActive, clickAnimationOverlay, completionCallback);
                 } else {
                     console.error(`Element not found after retry: ${action.element}`);
+                    // If element still not found after retry, call the completion callback
+                    if (completionCallback) completionCallback();
                 }
             }, 1000);
             this.animations.trackTimer(retryTimerId);
@@ -276,15 +284,18 @@ export class TourActions {
     /**
      * Click elements in sequence
      */
-    clickElementsSequentially(elements, currentIndex, cursor, isActive) {
-        if (!isActive || currentIndex >= elements.length) return;
+    clickElementsSequentially(elements, currentIndex, cursor, isActive, completionCallback) {
+        if (!isActive || currentIndex >= elements.length) {
+            if (completionCallback) completionCallback();
+            return;
+        }
         
         const selector = elements[currentIndex];
         const element = document.querySelector(selector);
         
         if (!element) {
             console.warn(`Element not found: ${selector}, skipping to next`);
-            this.clickElementsSequentially(elements, currentIndex + 1, cursor, isActive);
+            this.clickElementsSequentially(elements, currentIndex + 1, cursor, isActive, completionCallback);
             return;
         }
         
@@ -343,7 +354,7 @@ export class TourActions {
                 // Add delay between clicks - longer delay for better visibility
                 const nextTimerId = setTimeout(() => {
                     // Move to next element
-                    this.clickElementsSequentially(elements, currentIndex + 1, cursor, isActive);
+                    this.clickElementsSequentially(elements, currentIndex + 1, cursor, isActive, completionCallback);
                 }, 1200); // Delay between clicks
                 this.animations.trackTimer(nextTimerId);
             });
@@ -353,8 +364,11 @@ export class TourActions {
     /**
      * Setup input field action
      */
-    setupInputField(action, isActive) {
-        if (!isActive) return;
+    setupInputField(action, isActive, completionCallback) {
+        if (!isActive) {
+            if (completionCallback) completionCallback();
+            return;
+        }
         
         // Handle dynamic selectors first
         if (action.inputField) {
@@ -398,7 +412,10 @@ export class TourActions {
                         let charIndex = 0;
                         
                         const typeNextChar = () => {
-                            if (!isActive) return;
+                            if (!isActive) {
+                                if (completionCallback) completionCallback();
+                                return;
+                            }
                             
                             if (charIndex < text.length) {
                                 // Add next character
@@ -428,12 +445,20 @@ export class TourActions {
                                                 submitButton.click();
                                                 inputElement.classList.remove('tour-highlight');
                                                 submitButton.classList.remove('tour-highlight');
+                                                
+                                                // Action complete, call the completion callback
+                                                if (completionCallback) completionCallback();
                                             });
                                         });
+                                    } else {
+                                        // Submit button not found, complete the action
+                                        inputElement.classList.remove('tour-highlight');
+                                        if (completionCallback) completionCallback();
                                     }
                                 } else {
                                     // Just remove highlight if no submit button
                                     inputElement.classList.remove('tour-highlight');
+                                    if (completionCallback) completionCallback();
                                 }
                             }
                         };
@@ -446,7 +471,131 @@ export class TourActions {
                     });
                 }, 1000);
                 this.animations.trackTimer(clickTimerId);
+            } else {
+                // Input element not found
+                console.warn(`Input element not found: ${action.inputField}`);
+                if (completionCallback) completionCallback();
             }
+        } else {
+            // No input field specified
+            console.warn('No input field specified in action');
+            if (completionCallback) completionCallback();
+        }
+    }
+
+    findAndSelectPaper(action, isActive, completionCallback) {
+        if (!isActive || !window.paperManager) {
+            if (completionCallback) completionCallback();
+            return;
+        }
+
+        const viewer = window.viewer;
+        const camera = viewer.viewer.scene.getActiveCamera();
+        const paperManager = window.paperManager;
+        
+        // Create a grid of points to test for intersections
+        const gridSize = action.gridSize || 5;
+        const gridSpacing = action.gridSpacing || 100;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        
+        // Array to hold all found intersections
+        const intersections = [];
+        
+        // Create a grid of test points
+        for (let x = -gridSize; x <= gridSize; x++) {
+            for (let y = -gridSize; y <= gridSize; y++) {
+                const testX = centerX + x * gridSpacing;
+                const testY = centerY + y * gridSpacing;
+                
+                // Stay within screen bounds
+                if (testX < 0 || testX >= width || testY < 0 || testY >= height) continue;
+                
+                // Create a synthetic mouse event at this position
+                const mouseEvent = new MouseEvent("click", {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    clientX: testX,
+                    clientY: testY
+                });
+                
+                // Check for intersection
+                const intersection = Potree.Utils.getMousePointCloudIntersection(
+                    mouseEvent,
+                    camera,
+                    viewer.viewer,
+                    viewer.viewer.scene.pointclouds
+                );
+                
+                if (intersection && intersection.point && intersection.point['mag_id']) {
+                    // Found a paper! Add to intersections array with distance from center
+                    const dx = testX - centerX;
+                    const dy = testY - centerY;
+                    const distFromCenter = Math.sqrt(dx*dx + dy*dy);
+                    
+                    intersections.push({
+                        intersection: intersection,
+                        distance: distFromCenter,
+                        x: testX,
+                        y: testY
+                    });
+                }
+            }
+        }
+        
+        // If we found papers, select the closest one to the center of the screen
+        if (intersections.length > 0) {
+            // Sort by distance from center
+            intersections.sort((a, b) => a.distance - b.distance);
+            
+            // Select the best intersection (closest to center by default)
+            const bestIntersection = intersections[0];
+            
+            // If we have an animation overlay, show where we clicked
+            if (this.animationOverlay) {
+                this.animationOverlay.innerHTML = '';
+                
+                // Create highlight circle
+                const highlightEl = document.createElement('div');
+                highlightEl.className = 'paper-highlight-circle';
+                highlightEl.style.left = `${bestIntersection.x - 25}px`;
+                highlightEl.style.top = `${bestIntersection.y - 25}px`;
+                this.animationOverlay.appendChild(highlightEl);
+                
+                // Add animation to make it pulse
+                highlightEl.classList.add('pulse');
+                
+                // Show the highlight briefly before selecting
+                setTimeout(() => {
+                    // Call the paper selection methods
+                    paperManager.handlePointSelection(bestIntersection.intersection);
+                    const paperId = bestIntersection.intersection.point['mag_id'][0];
+                    paperManager.showPaperCard(paperId);
+                    
+                    // Fade out highlight
+                    highlightEl.classList.add('fade-out');
+                    
+                    // Return control after a delay
+                    setTimeout(() => {
+                        if (completionCallback) completionCallback();
+                    }, 2000);
+                }, 1000);
+            } else {
+                // No animation overlay, just select the paper directly
+                paperManager.handlePointSelection(bestIntersection.intersection);
+                const paperId = bestIntersection.intersection.point['mag_id'][0];
+                paperManager.showPaperCard(paperId);
+                
+                setTimeout(() => {
+                    if (completionCallback) completionCallback();
+                }, 2000);
+            }
+        } else {
+            console.log("No papers found in grid search");
+            if (completionCallback) completionCallback();
         }
     }
 

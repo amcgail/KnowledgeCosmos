@@ -542,6 +542,11 @@ export class FieldManager {
                 this.subfields = data.subfields;
                 this.field_orders = data.field_orders;
                 this.field_centers = data.field_centers;
+                
+                // Store field classification and intersection data
+                this.field_classifications = data.field_classifications || {};
+                this.intersection_pairs = data.intersection_pairs || {};
+                this.single_field_codes = data.single_field_codes || {};
 
                 // Initialize Field instances
                 for (const fieldName of Object.keys(this.subfields)) {
@@ -618,6 +623,8 @@ export class FieldManager {
         const basePath = (this.allowIndependentClouds && fieldInstance.useIndependentCloud) ? 
             '/data/pointclouds_independent/' : 
             '/data/pointclouds/';
+
+        console.log(basePath);
             
         window.viewer.loadPointCloud(`${basePath}${S}/metadata.json`, (pc) => {
             // Configure point cloud material
@@ -1653,6 +1660,16 @@ export class FieldManager {
 
             // Add annotation to the scene
             window.viewer.viewer.scene.annotations.add(annotation);
+
+            // Label the computer science field with an ID, so we can find it during the tour
+            setTimeout(() => {
+                console.log(fieldName);
+                if (fieldName === "Computer science") {
+                    annotation.domElement[0].id = "annotation-computer-science";
+                } else if (fieldName === "Machine learning") {
+                    annotation.domElement[0].id = "annotation-machine-learning";
+                }
+            }, 0);
         }
 
         // Set up the update loop for annotation opacities

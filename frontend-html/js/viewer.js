@@ -758,8 +758,8 @@ export class Viewer {
         // Show all menu elements and UI components
         document.querySelectorAll('#menu div').forEach(el => el.style.display = 'block');
         document.getElementById('skip_intro').style.display = 'none';
-        document.getElementById('tips_link').style.display = 'block';
-        document.getElementById('comment_link').style.display = 'block';
+        //document.getElementById('tips_link').style.display = 'block';
+        //document.getElementById('comment_link').style.display = 'block';
         document.getElementsByClassName('toolbar')[0].style.display = 'flex';
         document.getElementsByClassName('sidebar-toggle')[0].style.display = 'flex';
     }

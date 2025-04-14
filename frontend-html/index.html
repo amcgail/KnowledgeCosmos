@@ -56,8 +56,8 @@
 
     <!-- Right Sidebar -->
     <button class="sidebar-toggle" aria-label="Toggle sidebar" style="display: none;">
-        <i class="fas fa-chevron-right" style="display: none;"></i>
-        <i class="fas fa-chevron-left"></i>
+        <i class="fas fa-chevron-left" style="display: none;"></i>
+        <i class="fas fa-chevron-right"></i>
     </button>
     <div class="right-sidebar collapsed">
         <div class="sidebar-tabs">
@@ -215,9 +215,10 @@
         </div>
     </div>
 
-    <!-- Tips Panel -->
+    <!-- Tips Panel 
     <div id="tips_link" class="linky" style="display:none;">Tips</div>
     <div id="comment_link" class="linky" style="display:none;">Comments</div>
+    -->
 
     <div id="tips">
         <!-- Tips will be dynamically inserted here by JavaScript -->
@@ -241,12 +242,14 @@
         <div class="click-animation-overlay"></div>
         <div class="tour-message">
             <div class="close-tour-button">✕</div>
-            <h3 class="step-title"></h3>
+            <!--<h3 class="step-title"></h3>-->
             <p class="step-message"></p>
-            <p class="next-reminder"><strong>Click "Next Step" to continue →</strong></p>
             <div class="tour-nav-buttons">
-                <button class="tour-button tour-prev">Previous</button>
-                <button class="tour-button tour-next">Next Step ➜</button>
+                <p class="next-reminder"><strong>Click "Next" to continue →</strong></p>
+                <div class="button-row">
+                    <button class="tour-button tour-prev">Previous</button>
+                    <button class="tour-button tour-next">Next ➜</button>
+                </div>
             </div>
         </div>
         <div class="tour-contents">

@@ -41,6 +41,7 @@ export class TourUI {
             this.nextReminderElement = this.messageElement.querySelector('.next-reminder');
             
             // Navigation buttons
+            this.navButtons = this.messageElement.querySelector('.tour-nav-buttons');
             this.prevButton = this.messageElement.querySelector('.tour-prev');
             this.nextButton = this.messageElement.querySelector('.tour-next');
             this.closeButton = this.messageElement.querySelector('.close-tour-button');
@@ -354,21 +355,8 @@ export class TourUI {
      * Disable or enable navigation buttons during animations
      */
     disableNavigationButtons(disabled) {
-        if (this.prevButton) {
-            this.prevButton.style.display = disabled ? 'none' : '';
-        }
-        
-        if (this.nextButton) {
-            this.nextButton.style.display = disabled ? 'none' : '';
-        }
-        
-        if (this.skipButton) {
-            this.skipButton.disabled = disabled;
-            if (disabled) {
-                this.skipButton.classList.add('disabled-during-animation');
-            } else {
-                this.skipButton.classList.remove('disabled-during-animation');
-            }
+        if (this.navButtons) {
+            this.navButtons.style.display = disabled ? 'none' : '';
         }
     }
 } 
