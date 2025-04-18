@@ -194,6 +194,8 @@ export class TourUI {
      */
     setCelesteTourMode(isEnabled) {
         if (!this.celesteElement) return;
+
+        this.celesteElement.style.display = 'block';
         
         if (isEnabled) {
             // Update styling to be in tour mode

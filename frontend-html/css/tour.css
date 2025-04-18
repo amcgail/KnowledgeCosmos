@@ -20,7 +20,7 @@
     z-index: 15000;
     cursor: pointer;
     filter: drop-shadow(0 0 10px rgba(100, 217, 255, 0.6));
-    transition: all 0.3s ease;
+    transition: all 0.5s ease;
 }
 
 /* Celeste tooltip */
@@ -55,7 +55,6 @@
     pointer-events: none;
     z-index: 2010;
     transform: none !important;
-    transition: none !important;
     filter: drop-shadow(0 0 15px rgba(100, 217, 255, 0.8));
     cursor: default;
 }
@@ -190,7 +189,7 @@
     margin-top: 15px;
 }
 
-.tour-button {
+.tour-nav-button {
     padding: 8px 15px;
     border: none;
     border-radius: 5px;

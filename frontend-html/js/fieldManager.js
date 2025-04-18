@@ -1663,7 +1663,6 @@ export class FieldManager {
 
             // Label the computer science field with an ID, so we can find it during the tour
             setTimeout(() => {
-                console.log(fieldName);
                 if (fieldName === "Computer science") {
                     annotation.domElement[0].id = "annotation-computer-science";
                 } else if (fieldName === "Machine learning") {

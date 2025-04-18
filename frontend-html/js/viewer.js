@@ -862,7 +862,6 @@ export class Viewer {
         
         // Use the doneWithIntro method to ensure Celeste is created consistently
         this.doneWithIntro();
-        this.viewer.setPointBudget(2_000_000);
     }
 
     // Navigation methods
@@ -1006,7 +1005,7 @@ export class Viewer {
 
     startTour() {
         // Clean up intro elements
-        document.getElementById('prettier_game_info').innerHTML = '';
+        this.doneWithIntro();
         
         // Start the tour
         this.tourController.startTour();
