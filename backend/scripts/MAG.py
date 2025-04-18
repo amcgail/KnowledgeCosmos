@@ -100,7 +100,7 @@ def GetNonEnglishIDs():
             parts = line.split('\t')
             if len(parts) < 3:  # Skip malformed lines
                 continue
-                
+
             magid_str = parts[0]
             title = parts[5]  # Title is in the 6th column
 
@@ -110,5 +110,4 @@ def GetNonEnglishIDs():
     return non_english_ids
 
 if __name__ == '__main__':
-    print(len(GetYears()))
-    print(len(GetNonEnglishIDs()))
+    print(len(GetNonEnglishIDs(force=True)))

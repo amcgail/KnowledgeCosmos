@@ -3,6 +3,7 @@ import numpy as np
 import pickle
 from tqdm.auto import tqdm
 from pathlib import Path
+from .MAG import GetNonEnglishIDs
 
 __all__ = [
     'GetUmapEmbedding',
@@ -96,7 +97,7 @@ def pct_sample(pct, paper_ids_filter=None, **kwargs):
             
 # ======= END HELPERS ========
 
-@cache(ignore=['DEBUG'])
+@cache(ignore=['DEBUG', 'SAMPLE_SIZE'])
 def SampleForUmap(SAMPLE_SIZE=100_000, DEBUG=False):
     if DEBUG:
         # convenient, because it doesn't need to loop through everything
@@ -111,7 +112,7 @@ def SampleForUmap(SAMPLE_SIZE=100_000, DEBUG=False):
     sample_fraction = SAMPLE_SIZE / estimated_total_papers
     return list(pct_sample(sample_fraction))
 
-@cache(ignore=['DEBUG'])
+@cache(ignore=['DEBUG', 'SAMPLE_SIZE'])
 def FitUmapToSample(
     SAMPLE_SIZE=100_000,
     DEBUG=False,
@@ -127,6 +128,9 @@ def FitUmapToSample(
     pids = [x[0] for x in samp]
     vs = [x[1] for x in samp]
 
+    if UMAP_PARAMS is None:
+        UMAP_PARAMS = {}
+
     logger.info('Fitting to the sample...')
     reducer = umap.UMAP(
         n_components=3,
@@ -138,7 +142,7 @@ def FitUmapToSample(
     
     return reducer
 
-@cache(ignore=['CHUNK_SIZE', 'DEBUG'])
+@cache(ignore=['CHUNK_SIZE', 'DEBUG', 'SAMPLE_SIZE'])
 def GetUmapEmbeddingSingleFile(   
     filename_str: str,
     CHUNK_SIZE=10_000,
@@ -205,7 +209,7 @@ def shrink_towards_center(points, factor):
         result[pid] = scaled_coords
     return result
 
-@cache(ignore=['CHUNK_SIZE'])
+@cache(ignore=['CHUNK_SIZE', 'SAMPLE_SIZE', 'DEBUG'])
 def GetUmapEmbedding(
     CHUNK_SIZE=10_000,
     SAMPLE_SIZE=100_000,
@@ -213,11 +217,16 @@ def GetUmapEmbedding(
     UMAP_PARAMS=None
 ):
     
+    # Filter out non-English papers
+    non_english_ids = GetNonEnglishIDs()
+    
     # then we project the entire dataset using this projector
     logger.info('projecting all chunks')
 
     filenames = sorted(VECTOR_FOLDER.glob('**/paper_specter*.pkl'))
     total_emb_3d = {}
+
+    filtered_out = 0
 
     for fn in filenames:
         pts = GetUmapEmbeddingSingleFile(
@@ -228,36 +237,22 @@ def GetUmapEmbedding(
             UMAP_PARAMS=UMAP_PARAMS
         )
 
-        total_emb_3d.update(pts)
+        filtered_out += len(set(int(x) for x in pts) & non_english_ids)
+
+        total_emb_3d.update({
+            pid: emb for pid, emb in pts.items() if int(pid) not in non_english_ids
+        })
 
     # to maintain consistency, we need to shrink the points towards the center
     if UMAP_PARAMS is not None and 'spread' in UMAP_PARAMS:                
         total_emb_3d = shrink_towards_center(total_emb_3d, 1/UMAP_PARAMS['spread'])
-
+    
+    logger.info(f'Filtered embedding contains {len(total_emb_3d)} papers (removed {filtered_out} non-English papers)')
+    
     return total_emb_3d
 
-    """
-    total_emb_3d = {}
-    for X in enumerate(portion_generator(CHUNK_SIZE)):
-        emb = ProjectChunk(X)
-        total_emb_3d.update(emb)
-    """
-
-    """
-    # parallelization breaks EVERYTHING, agh
-    # it doesn't die if we keep n_jobs=1, but it's not faster
-    total_emb_3d = {}
-    for emb in Parallel(n_jobs=1, backend='threading')(
-        delayed(ProjectChunk)(X, reducer)
-        for X in enumerate(portion_generator(CHUNK_SIZE))
-    ):
-        total_emb_3d.update(emb)
-
-    return total_emb_3d
-    """
-
-@cache(ignore=['DEBUG'])
-def SampleForFieldUmap(field_id, field_name, SAMPLE_SIZE=1_000_000, DEBUG=False):
+@cache(ignore=['DEBUG', 'SAMPLE_SIZE'])
+def SampleForFieldUmap(field_id, field_name, SAMPLE_SIZE=100_000, DEBUG=False):
     """Samples vectors specifically for a given field."""
     from . import fields # Import fields
     field_to_papers = fields.FieldToPapers() # Get the mapping
@@ -302,10 +297,10 @@ def SampleForFieldUmap(field_id, field_name, SAMPLE_SIZE=1_000_000, DEBUG=False)
         # Return sample and False flag
         return list(pct_sample(sample_fraction, paper_ids_filter=field_paper_set)), False
 
-@cache(ignore=['DEBUG', 'UMAP_PARAMS'])
+@cache(ignore=['DEBUG', 'UMAP_PARAMS', 'SAMPLE_SIZE'])
 def FitUmapToFieldSample(
-    field_id, # Numerical ID
-    field_name, # Name for logging
+    field_id, 
+    field_name, 
     SAMPLE_SIZE=100_000,
     DEBUG=False,
     UMAP_PARAMS=None
@@ -386,12 +381,12 @@ def FitUmapToFieldSample(
         logger.error(f"Error fitting UMAP for field {field_name} ({field_id}): {e}")
         return None, None, False # Return indicating failure
 
-@cache(ignore=['CHUNK_SIZE'])
+@cache(ignore=['CHUNK_SIZE', 'SAMPLE_SIZE', 'DEBUG'])
 def GetFieldUmapEmbedding(
     field_id,
     field_name,
-    CHUNK_SIZE=50_000, # Larger chunk size might be okay here
-    SAMPLE_SIZE=1_000_000,
+    CHUNK_SIZE=50_000,
+    SAMPLE_SIZE=100_000,
     DEBUG=False,
     UMAP_PARAMS=None
 ):
@@ -469,7 +464,7 @@ def GetFieldUmapEmbedding(
 @cache(ignore=['CHUNK_SIZE', 'SAMPLE_SIZE', 'DEBUG'])
 def GetAllFieldEmbeddings(
     CHUNK_SIZE=50_000,
-    SAMPLE_SIZE=1_000_000,
+    SAMPLE_SIZE=100_000,
     DEBUG=False,
     UMAP_PARAMS=None
 ):
@@ -483,6 +478,10 @@ def GetAllFieldEmbeddings(
     field_names = fields.GetFieldNames()
     top_level_ids = fields.GetTopLevel()
     field_to_papers = fields.FieldToPapers()
+    
+    # Get non-English paper IDs to filter them out
+    non_english_ids = GetNonEnglishIDs()
+    logger.info(f'Will filter out {len(non_english_ids)} non-English papers from field embeddings')
 
     all_field_embeddings = {}
 
@@ -510,10 +509,18 @@ def GetAllFieldEmbeddings(
         if embedding:
             if UMAP_PARAMS is not None and 'spread' in UMAP_PARAMS:
                 embedding = shrink_towards_center(embedding, 1/UMAP_PARAMS['spread'])
-            all_field_embeddings[field_id] = embedding
+            
+            # Filter out non-English papers
+            filtered_embedding = {pid: emb for pid, emb in embedding.items() if int(pid) not in non_english_ids}
+            logger.info(f'Filtered embedding for field {field_name} contains {len(filtered_embedding)} papers (removed {len(embedding) - len(filtered_embedding)} non-English papers)')
+            
+            all_field_embeddings[field_id] = filtered_embedding
 
         if DEBUG:
             break
 
     logger.info(f"Finished generating independent embeddings for {len(all_field_embeddings)} fields.")
     return all_field_embeddings
+
+if __name__ == "__main__":
+    GetUmapEmbedding(force=True)
