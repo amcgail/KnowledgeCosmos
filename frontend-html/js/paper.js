@@ -207,9 +207,8 @@ export class PaperManager {
     }
 
     showPaperCard(id) {
-        $("#potree_render_area").css('left', '400px');
-        $(".paper-details").toggle(true);
-        $(".paper-sidebar-toggle").toggle(true);
+        this.paperSidebarToggle(true);
+
         $(".paper-details .loading-placeholders").show();
         $(".paper-details>.paper-title, .paper-details>.paper-meta, .paper-details>.paper-tags, .paper-details>.paper-content").hide();
 
@@ -265,12 +264,10 @@ export class PaperManager {
     }
 
     hidePaperCard(keepChevron = false) {
-        $("#paper_info").toggle(false);
-        $(".paper-details").toggle(false);
+        this.paperSidebarToggle(false);
         if (!keepChevron) {
             $(".paper-sidebar-toggle").toggle(false);
         }
-        $("#potree_render_area").css('left', '0');
     }
 
     checkAndDisplay() {
@@ -315,12 +312,10 @@ export class PaperManager {
                     window.paperManager.showPaperCard(myi);
                 } else {
                     this.resetSelection();
-                    window.paperManager.hidePaperCard();
                 }
             }
         } else {
             this.resetSelection();
-            window.paperManager.hidePaperCard();
         }
     }
 
@@ -517,22 +512,20 @@ export class PaperManager {
         });
     }
 
+    paperSidebarToggle(visible) {
+        const isCollapsed = !$(".paper-details").is(":visible");
+        const nextState = visible !== undefined ? visible : isCollapsed;
+
+        $(".paper-details").toggle(nextState);
+        $("#potree_render_area").css('left', nextState ? '400px' : '0');
+
+        if (nextState) $(".paper-sidebar-toggle").toggle(true); // make sure the toggle is visible if we're toggling on
+
+        $(".paper-sidebar-toggle").css('left', nextState ? '440px' : '0');
+        $(".paper-sidebar-toggle i").css('transform', nextState ? 'rotate(0deg)' : 'rotate(180deg)');
+    }
+
     setupPaperSidebarToggle() {
-        $('.paper-sidebar-toggle').on('click', () => {
-            const isCollapsed = !$(".paper-details").is(":visible");
-            if (isCollapsed) {
-                // Expand
-                $(".paper-details").toggle(true);
-                $("#potree_render_area").css('left', '400px');
-                $(".paper-sidebar-toggle").css('left', '440px');
-                $(".paper-sidebar-toggle i").css('transform', 'rotate(0deg)');
-            } else {
-                // Collapse
-                $(".paper-details").toggle(false);
-                $("#potree_render_area").css('left', '0');
-                $(".paper-sidebar-toggle").css('left', '0');
-                $(".paper-sidebar-toggle i").css('transform', 'rotate(180deg)');
-            }
-        });
+        $('.paper-sidebar-toggle').on('click', () => this.paperSidebarToggle());
     }
 } 
