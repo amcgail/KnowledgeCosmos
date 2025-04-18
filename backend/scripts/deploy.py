@@ -12,6 +12,12 @@ def expose_field_data():
     subgs = fields.GetSubFields()
     colors, orders = pointclouds.ProduceFieldPointClouds()
     field_centers = mesh.GetFieldCenters()
+    
+    # Generate intersection mappings
+    intersection_data = pointclouds.GenerateFieldIntersectionMapping()
+    field_to_classifications = intersection_data["field_to_classifications"]
+    intersection_pairs = intersection_data["intersection_pairs"]
+    single_field_codes = intersection_data["single_field_codes"]
 
     i2n = fields.GetFieldNames()
     nm = lambda x: i2n[x]
@@ -30,7 +36,7 @@ def expose_field_data():
         "top_level": top_level,
         "field_colors": colors,
         "field_orders": field_orders,
-        "field_centers": field_centers  # Add the field centers to the output
+        "field_centers": field_centers,  # Add the field centers to the output
     }
 
     # Create static directory if it doesn't exist
@@ -49,7 +55,7 @@ def deploy():
     script_path = Path(__file__).resolve()
     project_root = script_path.parent.parent.parent
     src_path = project_root / "data" / "static"
-    dst_path = project_root / "frontend-html" / "static"
+    dst_path = project_root / "frontend-html" / "data"
 
     logger.info(f"Attempting to create symlink: '{dst_path}' -> '{src_path}'")
 

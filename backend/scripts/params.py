@@ -11,7 +11,6 @@ ALPHA = 3 # alpha value for the mesh
 
 """
 BASIC_UMAP_PARAMS = dict() # I used defaults for the first 2 years of this project
-"""
 
 UMAP_PARAMS = dict(
     metric='cosine', # for embedding vectors, cosine is better than euclidean
@@ -21,6 +20,7 @@ UMAP_PARAMS = dict(
     n_epochs=400, # default is 200
     angular_rp_forest=True, # only useful for cosine metric
 )
+"""
 
 CHUNK_SIZE = 100_000 # number of vectors to process at a time
 

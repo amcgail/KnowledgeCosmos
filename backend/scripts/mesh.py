@@ -210,6 +210,7 @@ def adjust_center_if_outside(mesh, center):
         closest_vertex_idx = np.argmin(distances)
         return mesh.vertices[closest_vertex_idx]
     return center
+
 def is_point_inside_mesh(mesh, point):
     """Check if a point is inside a mesh using ray casting.
     
@@ -356,7 +357,12 @@ def GetFieldCenters():
                 pbar.update(1)
                 continue
             
-            center = adjust_center_if_outside(mesh, center)
+            try:
+                center = adjust_center_if_outside(mesh, center)
+            except Exception as e:
+                print(f"Error adjusting center for {field_name}: {e}")
+                continue
+
             center = (center * SCALE).tolist()
             
             # Calculate camera position
@@ -400,7 +406,7 @@ def WriteFullMesh(
     points = [embedding[pid] for pid in sampled_ids]
 
     # Remove variables that are no longer needed
-    del embedding, valid_paper_ids, paper_ids, sampled_ids
+    del embedding, paper_ids, sampled_ids
     gc.collect()
     
     # Generate mesh from points
