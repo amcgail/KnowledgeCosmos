@@ -609,8 +609,20 @@ export class FieldManager {
         // Deactivate previous active field
         if (this.activeField && this.activeField !== field) {
             this.activeField.clearSubfields();
+            // Hide the previous field's point cloud
+            if (this.activeField.pointCloud) {
+                this.activeField.pointCloud.visible = false;
+            }
         }
         this.activeField = field;
+        
+        // If setting to null, hide all point clouds and show main point cloud
+        if (!field) {
+            window.main_pc.visible = true;
+            for (const [name, pc] of this.pointCloudCache.entries()) {
+                pc.visible = false;
+            }
+        }
     }
 
     /**
