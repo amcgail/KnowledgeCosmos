@@ -1489,6 +1489,9 @@ export class FieldManager {
         const cameraDirection = new THREE.Vector3();
         camera.getWorldDirection(cameraDirection);
         
+        // Get current settings
+        const textSize = window.settingsManager.getSetting('ui', 'annotationTextSize');
+        const visibilityMode = window.settingsManager.getSetting('ui', 'annotationVisibilityMode');
         
         // Calculate distances for all annotations
         const annotationsWithDistances = [];
@@ -1504,15 +1507,18 @@ export class FieldManager {
             // Use a large distance for points behind the camera
             let distance = dot < 0 ? 100000 : cameraPosition.distanceTo(annotation.position);
             
-            // If there's a filtered field, only show its subfields
-            if (this.topLevelFilter) {
-                // If this is a subfield of the filtered field, keep its distance
-                if (this.subfields[this.topLevelFilter]?.includes(annotation.title)) {
-                    // Keep the original distance
-                } else {
-                    // Push everything else far away
+            // Handle visibility mode
+            if (this.topLevelFilter) { // Only apply visibility mode when a filter is active
+                if (visibilityMode === 'auto-hide') {
+                    // Auto-hide mode: hide all labels when filter is active
                     distance = Infinity;
+                } else if (visibilityMode === 'filtered') {
+                    // Filtered mode: only show annotations for the current filter
+                    if (!this.subfields[this.topLevelFilter]?.includes(annotation.title)) {
+                        distance = Infinity;
+                    }
                 }
+                // 'all' mode: show all annotations regardless of filter
             }
             
             annotationsWithDistances.push({ annotation, distance });
@@ -1523,22 +1529,15 @@ export class FieldManager {
         
         // Define visibility thresholds
         const fullyVisibleCount = 5;
-        const partiallyVisibleCount = 15;
-        const totalVisibleCount = 20; // 5 fully visible + 15 partially visible
+        const totalVisibleCount = window.settingsManager.getSetting('ui', 'annotationTotalVisibleCount');
+        const partiallyVisibleCount = totalVisibleCount - fullyVisibleCount;
         const maxDistance = 1000; // Maximum distance threshold for regular labels
-        const centralMaxDistance = 2000; // Maximum distance threshold for central fields
         
         // Define scaling thresholds
         const minScale = 1.0; // Default size
         const maxScale = 3.0; // Maximum size multiplier
         const scaleStartDistance = 200; // Start scaling up when closer than this
         const scaleEndDistance = 50; // Reach maximum scale at this distance
-        
-        // Define central field opacity thresholds
-        const centralMinOpacity = 0.4; // Minimum opacity for central fields
-        const centralMaxOpacity = 0.9; // Maximum opacity for central fields
-        const centralFadeStartDistance = 1500; // Start fading central fields at this distance
-        const centralFadeEndDistance = 2000; // Complete fade at this distance
         
         annotationsWithDistances.forEach((item, index) => {
             const { annotation, distance } = item;
@@ -1565,6 +1564,9 @@ export class FieldManager {
                 }
             }
             
+            // Apply text size setting
+            $element.find('.annotation-label').css('font-size', `${textSize}px`);
+            
             // Handle visibility based on distance and field type
             if (distance === 100000) {
                 // Hide all fields (including central) if behind camera
@@ -1572,30 +1574,6 @@ export class FieldManager {
                     'display': 'none'
                 });
                 return;
-            }
-            
-            if (isCentralField) {
-                if (distance > centralMaxDistance) {
-                    // Hide central fields at extreme distances
-                    $element.css({
-                        'display': 'none'
-                    });
-                    return;
-                }
-                
-                // Calculate opacity for central fields based on distance
-                let opacity = centralMaxOpacity;
-                if (distance > centralFadeStartDistance) {
-                    const fadeProgress = (distance - centralFadeStartDistance) / (centralFadeEndDistance - centralFadeStartDistance);
-                    opacity = centralMaxOpacity - (centralMaxOpacity - centralMinOpacity) * fadeProgress;
-                    opacity = Math.max(centralMinOpacity, Math.min(centralMaxOpacity, opacity));
-                }
-                
-                $element.css({
-                    'opacity': opacity.toFixed(2),
-                    'display': 'block',
-                    'transform': `translate(-50%, -30px) scale(${scale})`
-                });
             } else if (annotation.title === this.selectedFieldName) {
                 // Selected node is always fully visible (if in front of camera)
                 $element.css({
@@ -1603,6 +1581,14 @@ export class FieldManager {
                     'display': 'block',
                     'transform': `translate(-50%, -30px) scale(${scale})`,
                     'z-index': '9999'
+                });
+            } else if (isCentralField) {
+                // Central fields are always fully visible (if in front of camera)
+                $element.css({
+                    'opacity': '1.0',
+                    'display': 'block',
+                    'transform': `translate(-50%, -30px) scale(${scale})`,
+                    'z-index': '9998' // Just below selected field
                 });
             } else if (distance > maxDistance) {
                 // Hide non-central fields at regular max distance

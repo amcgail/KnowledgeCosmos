@@ -883,8 +883,10 @@ export class TourController {
         this.actions.removeEventListeners();
         this.animations.clearActiveTimers();
         
-        // Show Celeste helper only if intro is completed
-        if (this.tourUI.celesteElement && document.getElementById('skip_intro').style.display === 'none') {
+        // Show Celeste helper only if intro is completed and the setting allows it
+        if (this.tourUI.celesteElement && 
+            document.getElementById('skip_intro').style.display === 'none' &&
+            window.settingsManager.getSetting('ui', 'celesteVisible')) {
             this.tourUI.celesteElement.style.display = 'block';
         }
         

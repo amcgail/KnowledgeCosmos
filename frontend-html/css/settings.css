@@ -1,3 +1,11 @@
+:root {
+    --border-color: #ddd;
+    --background-color: white;
+    --text-color: #333;
+    --hover-color: #f0f0f0;
+    --accent-color: #2196F3;
+}
+
 .settings-content {
     padding: 20px;
     overflow-y: auto;
@@ -20,9 +28,9 @@
 }
 
 .setting-item {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
     margin-bottom: 1rem;
     padding-bottom: 1rem;
     border-bottom: 1px solid rgba(0,0,0,0.06);
@@ -38,26 +46,39 @@
 .setting-item-header {
     display: flex;
     justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+}
+
+.setting-label-container {
+    display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
+    flex: 1;
 }
 
 .setting-item-label {
     font-size: 0.9rem;
     font-weight: 500;
     color: #444;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    word-break: normal;
+    overflow-wrap: break-word;
 }
 
 .setting-description {
-    margin: 4px 0 8px;
     color: #666;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
+    font-weight: normal;
+    display: block;
+    margin-top: 2px;
 }
 
 .setting-controls {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    width: 100%;
 }
 
 /* Reset buttons */
@@ -67,6 +88,8 @@
     justify-content: center;
     width: 24px;
     height: 24px;
+    margin-left: 8px;
+    flex-shrink: 0;
     padding: 0;
     border: none;
     background: none;
@@ -108,18 +131,16 @@
 }
 
 /* Checkbox styling */
-.setting-item.checkbox .setting-controls {
-    justify-content: flex-end;
-}
-
-.setting-item.checkbox label {
+.checkbox-wrapper {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    position: relative;
+    margin-right: 0;
     cursor: pointer;
 }
 
-.setting-item.checkbox input {
+.setting-item.checkbox input[type="checkbox"] {
     display: none;
 }
 
@@ -127,27 +148,79 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
-    border: 2px solid #ddd;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-color);
     border-radius: 4px;
     transition: all 0.2s;
+    flex-shrink: 0;
+    position: relative;
+    background: white;
+    cursor: pointer;
 }
 
 .checkbox-display::after {
-    content: '✓';
-    color: transparent;
-    font-size: 14px;
-    transition: color 0.2s;
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0;
+    transition: opacity 0.2s;
 }
 
-input:checked + .checkbox-display {
-    border-color: #2196F3;
-    background: #2196F3;
+.setting-item.checkbox input[type="checkbox"]:checked + .checkbox-display {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
 }
 
-input:checked + .checkbox-display::after {
-    color: white;
+.setting-item.checkbox input[type="checkbox"]:checked + .checkbox-display::after {
+    opacity: 1;
+}
+
+/* Checkbox layout specific styles */
+.setting-item.checkbox .setting-item-header {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: start;
+}
+
+.checkbox-left-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.label-right-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.setting-item.checkbox .setting-item-label {
+    flex-direction: column;
+    align-items: flex-start;
+    cursor: pointer;
+}
+
+.setting-item.checkbox .setting-description {
+    margin-top: 2px;
+    margin-left: 0;
+    display: block;
+}
+
+.checkbox-reset {
+    margin-left: 0;
+}
+
+/* Ensure reset button aligns with checkbox */
+.reset-button.checkbox-reset {
+    margin-top: 4px;
 }
 
 /* Range input styling */
@@ -157,6 +230,7 @@ input:checked + .checkbox-display::after {
     gap: 12px;
     width: 100%;
     max-width: 300px;
+    margin-top: 8px;
 }
 
 .setting-item input[type="range"] {
@@ -177,8 +251,6 @@ input:checked + .checkbox-display::after {
 }
 
 input[type="range"] {
-    -webkit-appearance: none;
-    background: transparent;
     width: 100%;
 }
 
@@ -212,6 +284,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
     flex-wrap: wrap;
     gap: 8px;
     margin-top: 8px;
+    width: 100%;
 }
 
 .multi-select-option {
@@ -290,4 +363,77 @@ input[type="range"]:focus::-webkit-slider-thumb {
 .setting-item select option {
     background: #333;
     color: black;
+}
+
+.setting-item.with-description .setting-controls {
+    margin-top: 8px;
+    width: 100%;
+}
+
+.setting-item.with-description .range-container {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.setting-item.with-description input[type="range"] {
+    flex: 1;
+}
+
+.setting-item.with-description .range-value {
+    min-width: 40px;
+    text-align: right;
+}
+
+.select-container, .multi-select-container {
+    margin-top: 8px;
+}
+
+.select-option {
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--background-color);
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.select-option:hover {
+    background: var(--hover-color);
+}
+
+.select-option.selected {
+    background: var(--accent-color);
+    color: black;
+    border-color: var(--accent-color);
+    background-color: #ddf;
+}
+
+.setting-item.with-description .select-container,
+.setting-item.with-description .multi-select-container {
+    margin-top: 8px;
+}
+
+/* Force sliders and select options to new line */
+.setting-item:not(.checkbox) .setting-controls {
+    grid-row: 2;
+    width: 100%;
+    margin-top: 4px;
+}
+
+/* Keep checkboxes inline */
+.setting-item.checkbox .setting-controls {
+    display: inline-flex;
+}
+
+/* Keep checkboxes properly aligned */
+.setting-item.checkbox .setting-item-header {
+    display: flex;
+    align-items: center;
+}
+
+.setting-item.checkbox .setting-description {
+    margin-top: 0;
 } 

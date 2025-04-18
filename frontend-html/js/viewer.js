@@ -29,6 +29,11 @@ export class Viewer {
         // Create UI manager with settings manager
         this.uiManager = new UIManager(this.settingsManager);
         
+        // Movement speed parameters
+        this.baseSpeed = 0.1;
+        this.maxSpeed = 20.0;
+        this.speedExponent = 2;
+        
         this.setupViewer();
         this.setupControls();
         this.setupInitialState();
@@ -142,11 +147,6 @@ export class Viewer {
         // Make the render area focusable
         renderArea.setAttribute('tabindex', '0');
         
-        // Base movement speed and speed parameters
-        const baseSpeed = 0.1;
-        const maxSpeed = 20.0;
-        const speedExponent = 2;
-        
         let rotating = false;
         
         // Continuous movement update
@@ -165,8 +165,8 @@ export class Viewer {
             
             // Calculate speed with quadratic increase
             const speedMultiplier = this.recentDistance === 0 
-                ? baseSpeed 
-                : Math.min(maxSpeed, baseSpeed * (1 + Math.pow(this.recentDistance / 10, 2)));
+                ? this.baseSpeed 
+                : Math.min(this.maxSpeed, this.baseSpeed * (1 + Math.pow(this.recentDistance / 10, this.speedExponent)));
 
             // Handle both arrow keys and WASD
             if (keyStates['arrowup'] || keyStates['w']) moveVector.add(forward.multiplyScalar(speedMultiplier));
@@ -725,8 +725,10 @@ export class Viewer {
         // Get the existing Celeste helper and initialize it
         const celesteHelper = document.querySelector('.celeste-helper');
         if (celesteHelper) {
-            // Show Celeste
-            celesteHelper.style.display = 'block';
+            // Show Celeste only if the setting allows it
+            if (window.settingsManager.getSetting('ui', 'celesteVisible')) {
+                celesteHelper.style.display = 'block';
+            }
             
             // Get the tooltip
             const tooltip = celesteHelper.querySelector('.celeste-tooltip');
