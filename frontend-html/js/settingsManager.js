@@ -158,7 +158,7 @@ export class SettingsManager {
                     name: "Annotation Visibility",
                     description: "How annotations are displayed when you have a filter applied",
                     type: "select",
-                    default: 'filtered',
+                    default: 'auto-hide',
                     options: ['auto-hide', 'filtered', 'all'],
                 },
                 annotationTotalVisibleCount: {

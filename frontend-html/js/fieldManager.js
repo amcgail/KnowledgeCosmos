@@ -1594,8 +1594,8 @@ export class FieldManager {
                     'transform': `translate(-50%, -30px) scale(${scale})`,
                     'z-index': '9999'
                 });
-            } else if (isCentralField) {
-                // Central fields are always fully visible (if in front of camera)
+            } else if (isCentralField && (!this.topLevelFilter || visibilityMode === 'all')) {
+                // Central fields are only fully visible if no filter is active or in 'all' mode
                 $element.css({
                     'opacity': '1.0',
                     'display': 'block',
