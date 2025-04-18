@@ -60,67 +60,52 @@ class CacheWrapper:
     This class implements a caching mechanism that:
     1. Stores function results in pickle files
     2. Uses MD5 hashing of function arguments to create unique cache keys
-    3. Supports memory caching to avoid repeated disk reads
-    4. Allows ignoring specific parameters from the cache key
-    5. Handles default parameter values automatically
-    6. Can track explicit dependencies on CONFIG_PARAMS values
-    
-    The cache files are stored in a directory structure based on the module name and function name.
-    Each cache file is named using the pattern: {module}/{function_name}_{hash}.pkl
+    3. Supports dependencies specified as default parameters
+    4. Automatically passes relevant arguments to dependencies
+    5. Handles dependency tracking and cache invalidation
+    6. Allows ignoring specific parameters from the cache key
     
     Attributes:
         func: The function to be cached
-        ignore: List of parameter names to ignore when creating cache keys
-        config_depends_on: List of CONFIG_PARAMS keys this function depends on
-        memcache: Dictionary for in-memory caching
         name: Name of the wrapped function
-        module: Module name of the wrapped function
-        defaults: Dictionary of default parameter values
+        depends: List of other CacheWrapper instances this function depends on
+        default_dependencies: List of tuples (param_name, CacheWrapper) found in default parameters
+        ignore: List of parameter names to ignore when creating cache keys
     """
     
-    def __init__(self, func, ignore=None, config_depends_on=None):
+    def __init__(self, func, name=None, depends=None, ignore=None):
         """
         Initialize the CacheWrapper.
         
         Args:
             func: The function to be cached
+            name: Name of the wrapped function
+            depends: List of other CacheWrapper instances this function depends on
             ignore: List of parameter names to ignore when creating cache keys
-            config_depends_on: List of CONFIG_PARAMS keys this function depends on
         """
-        if ignore is None:
-            ignore = []
-        if config_depends_on is None:
-            config_depends_on = []
-
         self.func = func
-        self.ignore = ignore
-        self.config_depends_on = config_depends_on
-        self.memcache = {}
-        self.name = self.func.__name__
+        self.depends = [] if depends is None else depends
+        self.name = name or func.__name__
+        self.default_dependencies = []
+        self.last_modified = time()
+        self.ignore = [] if ignore is None else ignore
         
-        import inspect
-        module_file = inspect.getfile(self.func)
-        # Convert file path to module path
-        module = module_file.replace(os.path.sep, '.')
-        # Remove .py extension and any leading path components
-        module = module[:-3]  # Remove .py
-        # Find the first occurrence of 'backend' to get the proper module path
-        backend_idx = module.find('scripts')
-        if backend_idx != -1:
-            module = module[backend_idx:]
+        # Find dependencies in default parameters
+        if hasattr(func, "__signature__"):
+            sig = func.__signature__
+        else:
+            sig = inspect.signature(func)
+            
+        for param_name, param in sig.parameters.items():
+            if param.default is not param.empty and isinstance(param.default, CacheWrapper):
+                self.default_dependencies.append((param_name, param.default))
+                # Add to explicit dependencies list as well
+                if param.default not in self.depends:
+                    self.depends.append(param.default)
         
-        self.module = '.'.join(module.split('.')[1:])
-        
-        signature = inspect.signature(self.func)
-        # Get all parameters that have defaults
-        self.defaults = {
-            k: v.default
-            for k, v in signature.parameters.items()
-            if v.default is not inspect.Parameter.empty
-        }
-        # Get all parameter names that are keyword-only
-        self.kwargs_only = {
-            k for k, v in signature.parameters.items()
+        # Get all parameter names (both keyword-only and positional-or-keyword)
+        self.all_params = {
+            k for k, v in sig.parameters.items()
             if v.kind in (inspect.Parameter.KEYWORD_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
         }
 
@@ -136,16 +121,22 @@ class CacheWrapper:
         """
         import json
         import hashlib
-        import inspect
 
-        # Start with defaults
-        kwargs = dict(self.defaults, **kwargs)
-        # Override with config params if they exist
-        for k, v in CONFIG_PARAMS.items():
-            if k in self.kwargs_only:  # Only override if it's a valid keyword arg
-                kwargs[k] = v
-
-        kwargs_care = {k: str(v) for k, v in kwargs.items() if self.ignore is None or k not in self.ignore}
+        # Create a copy of kwargs that we'll use for hashing
+        kwargs_care = {}
+        
+        for k, v in kwargs.items():
+            # Skip parameters that should be ignored
+            if k in self.ignore:
+                continue
+                
+            if k in self.default_dependencies:
+                # For dependencies, use a consistent representation in the hash
+                dep_index = next(i for i, (name, _) in enumerate(self.default_dependencies) if name == k)
+                kwargs_care[k] = f"<dependency:{self.default_dependencies[dep_index][1].name}>"
+            else:
+                # For normal values, use their string representation
+                kwargs_care[k] = str(v)
 
         h = hashlib.md5(json.dumps({
             'args': tuple(),
@@ -154,151 +145,205 @@ class CacheWrapper:
 
         return h
         
-    def filename(self, kwargs):
+    def filename(self, **kwargs):
         """
         Generate the cache file paths using a hash of the arguments.
         
         Args:
-            kwargs: Dictionary of keyword arguments
+            **kwargs: Keyword arguments
             
         Returns:
-            tuple: (Path to metadata file, Path to result file)
+            tuple: (Path to pickle file, Path to yaml metadata file)
         """
-        # Get relevant arguments (excluding ignored ones)
-        relevant_args = {k: str(v) for k, v in kwargs.items() 
-                        if self.ignore is None or k not in self.ignore}
-        
         # Create a hash of the arguments
-        import json
-        import hashlib
-        arg_str = json.dumps(relevant_args, sort_keys=True)
-        hash_value = hashlib.md5(arg_str.encode()).hexdigest()
+        hash_value = self.hash(kwargs)
         
-        (cache_dir / self.module).mkdir(exist_ok=True)
-        base_path = cache_dir / self.module / f"{self.name}_{hash_value}"
-        return base_path.with_suffix('.yaml'), base_path.with_suffix('.pkl')
+        (cache_dir / self.name).mkdir(exist_ok=True)
+        base_path = cache_dir / self.name / f"{self.name}_{hash_value}"
+        return base_path.with_suffix('.pkl'), base_path.with_suffix('.yaml')
     
-    def load(self, kwargs):
+    def call_dependency(self, dep, kwargs):
         """
-        Load cached results from disk or memory if available.
+        Call a dependency with relevant arguments from kwargs.
         
         Args:
-            kwargs: Dictionary of keyword arguments
+            dep: The CacheWrapper dependency to call
+            kwargs: Dictionary of keyword arguments from the current function
+            
+        Returns:
+            The result of calling the dependency
+        """
+        # Get the signature of the dependency function
+        dep_signature = inspect.signature(dep.func)
+        dep_params = dep_signature.parameters
+        
+        # Filter the kwargs to only include parameters that exist in the dependency
+        dep_kwargs = {}
+        for param_name in dep_params:
+            if param_name in kwargs:
+                dep_kwargs[param_name] = kwargs[param_name]
+                
+        # Call the dependency with the filtered kwargs
+        logger.info(f"Calling dependency {dep.name} for {self.name} with args: {dep_kwargs}")
+        return dep(**dep_kwargs)
+    
+    def check_dependencies(self, metadata):
+        """
+        Check if any dependencies have been modified since this cache was created.
+        
+        Args:
+            metadata: Dictionary containing cache metadata
+            
+        Returns:
+            bool: True if dependencies are up-to-date, False if they need to be recomputed
+        """
+        # Check if any dependent functions need to be recomputed
+        if self.depends:
+            for dep in self.depends:
+                # Check if the dependency is tracked in metadata
+                if 'dependencies' not in metadata or dep.name not in metadata['dependencies']:
+                    logger.info(f"Cache for {self.name} invalidated: missing dependency info for {dep.name}")
+                    return False
+                
+                # Check if the dependency has been modified since this cache was created
+                dep_last_modified = metadata['dependencies'][dep.name]
+                if dep.last_modified > dep_last_modified:
+                    logger.info(f"Cache for {self.name} invalidated: dependency {dep.name} modified")
+                    return False
+                
+        return True
+    
+    def _process_dependencies(self, kwargs):
+        """
+        Process any dependencies specified as default parameters.
+        
+        Args:
+            kwargs: Dictionary of keyword arguments to be updated
+            
+        Returns:
+            dict: Updated kwargs with dependencies resolved
+        """
+        # Update any CacheWrapper default parameters with their results
+        for param_name, dep in self.default_dependencies:
+            if param_name in kwargs and isinstance(kwargs[param_name], CacheWrapper):
+                # If the parameter is still a CacheWrapper (wasn't overridden),
+                # call it with relevant arguments
+                kwargs[param_name] = self.call_dependency(dep, kwargs)
+        return kwargs
+    
+    def load(self, **kwargs):
+        """
+        Load the result from the cache if it exists.
+        
+        Args:
+            **kwargs: Keyword arguments
             
         Returns:
             The cached result if available, None otherwise
         """
-        meta_file, result_file = self.filename(kwargs)
-
-        if result_file in self.memcache:
-            return self.memcache[result_file]
-                                 
-        if result_file.exists() and meta_file.exists():
-            # First check if any of the CONFIG_PARAMS dependencies have changed
-            if self.config_depends_on:
-                import yaml
-                try:
-                    with open(meta_file, 'r') as f:
-                        metadata = yaml.safe_load(f)
-                        
-                    # Check if the cached config values match current ones
-                    if 'config_values' in metadata:
-                        for key in self.config_depends_on:
-                            if key in CONFIG_PARAMS:
-                                current_value = CONFIG_PARAMS[key]
-                                if key not in metadata['config_values'] or metadata['config_values'][key] != current_value:
-                                    logger.info(f"Cache for {self.module}.{self.name} invalidated due to CONFIG_PARAMS[{key}] change")
-                                    return None
-                except Exception as e:
-                    logger.warning(f"Error checking CONFIG_PARAMS dependencies: {e}")
-                    return None
-            
-            s = time()
-            # Load the result data
-            with open(result_file, 'rb') as f:
-                result = pickle.load(f)
-            logger.info(f"Loaded cache for {self.module}.{self.name} in {time()-s:.1f}s")
-            self.memcache[result_file] = result
-            return result
-
+        # If force is True, bypass the cache
+        if kwargs.get('force', False):
+            return None
+                
+        # Process dependencies before loading
+        processed_kwargs = self._process_dependencies(kwargs.copy())
+        
+        pickle_file, yaml_file = self.filename(**processed_kwargs)
+        if os.path.exists(pickle_file):
+            try:
+                with open(pickle_file, 'rb') as f:
+                    data = pickle.load(f)
+                    
+                # Create YAML metadata file if it doesn't exist but pickle does
+                if not os.path.exists(yaml_file) and isinstance(data, dict) and 'metadata' in data:
+                    import yaml
+                    with open(yaml_file, 'w') as f:
+                        yaml.dump(data['metadata'], f, default_flow_style=False)
+                    
+                if isinstance(data, dict) and 'result' in data and 'metadata' in data:
+                    # Check dependencies to see if cache is still valid
+                    if not self.check_dependencies(data['metadata']):
+                        return None
+                    return data['result']
+                return data
+            except (pickle.PickleError, EOFError):
+                return None
         return None
     
     def save(self, kwargs, result, time_taken=None):
         """
-        Save results to separate metadata and result files.
+        Save results to cache file.
         
         Args:
             kwargs: Dictionary of keyword arguments
             result: The result to cache
+            time_taken: Time taken to compute the result
         """
-        meta_file, result_file = self.filename(kwargs)
+        pickle_file, yaml_file = self.filename(**kwargs)
         s = time()
         
-        # Save metadata to YAML
-        import yaml
+        # Update last_modified timestamp
+        self.last_modified = time()
+        
+        # Create metadata
         metadata = {
             'args': kwargs,
             'timestamp': time(),
-            'module': self.module,
             'function': self.name,
             'time_taken': time_taken
         }
         
-        # Include CONFIG_PARAMS dependencies in metadata
-        if self.config_depends_on:
-            metadata['config_values'] = {
-                key: CONFIG_PARAMS.get(key)
-                for key in self.config_depends_on
-                if key in CONFIG_PARAMS
+        # Include dependency information in metadata
+        if self.depends:
+            metadata['dependencies'] = {
+                dep.name: dep.last_modified
+                for dep in self.depends
             }
         
-        with open(meta_file, 'w') as f:
+        # Save both result and metadata
+        data = {
+            'result': result,
+            'metadata': metadata
+        }
+        
+        # Save result data to pickle
+        with open(pickle_file, 'wb') as f:
+            pickle.dump(data, f)
+        
+        # Save metadata to YAML for easier inspection
+        import yaml
+        with open(yaml_file, 'w') as f:
             yaml.dump(metadata, f, default_flow_style=False)
             
-        # Save result data to pickle
-        with open(result_file, 'wb') as f:
-            pickle.dump(result, f)
-            
-        logger.info(f"Saved cache for {self.module}.{self.name} in {time()-s:.1f}s")
+        logger.info(f"Saved cache for {self.name} in {time()-s:.1f}s")
 
-    def make(self, *args, force=False, **kwargs):
+    def make(self, **kwargs):
         """
         Force computation of the function result and save to cache.
         
         Args:
-            *args: Positional arguments (not supported)
-            force: If True, recompute even if cache exists
-            **kwargs: Keyword arguments
+            **kwargs: Keyword arguments including:
+                force: If True, recompute even if cache exists
             
         Returns:
             The computed result
-            
-        Raises:
-            ValueError: If positional arguments are provided
         """
-        if len(args):
-            raise ValueError("This is a cached function. Use only keyword arguments")
+        # Process dependencies before computation
+        processed_kwargs = self._process_dependencies(kwargs.copy())
         
-        # Start with defaults
-        kwargs = dict(self.defaults, **kwargs)
-        # Override with config params if they exist
-        for k, v in CONFIG_PARAMS.items():
-            if k in self.kwargs_only:  # Only override if it's a valid keyword arg
-                kwargs[k] = v
+        # Remove the force parameter if it exists
+        if 'force' in processed_kwargs:
+            processed_kwargs.pop('force')
         
-        cache_file = self.filename(kwargs)
-
-        # If cache exists, do nothing
-        if cache_file[1].exists() and not force:
-            return
-
-        # Otherwise, compute the result and save it
-        true_kwargs = dict(self.defaults, **kwargs)
-        logger.info(f"Computing {self.module}.{self.name} with args {args} and kwargs {true_kwargs}")
+        # Compute the result
+        logger.info(f"Computing {self.name} with kwargs {processed_kwargs}")
         s = time()
-        result = self.func(*args, **kwargs)
-        logger.info(f"Computed {self.module}.{self.name} in {time()-s:.1f}s")
-        self.save(kwargs, result, time_taken=time()-s)
+        result = self.func(**processed_kwargs)
+        elapsed = time() - s
+        logger.info(f"Computed {self.name} in {elapsed:.1f}s")
+        
+        # Save to cache
+        self.save(processed_kwargs, result, time_taken=elapsed)
 
         return result
 
@@ -308,7 +353,8 @@ class CacheWrapper:
         
         Args:
             *args: Positional arguments (not supported)
-            **kwargs: Keyword arguments
+            **kwargs: Keyword arguments including:
+                force: If True, bypass the cache and recompute the result
             
         Returns:
             The cached or computed result
@@ -318,22 +364,18 @@ class CacheWrapper:
         """
         if len(args):
             raise ValueError("This is a cached function. Use only keyword arguments")
-        
-        # Start with defaults
-        kwargs = dict(self.defaults, **kwargs)
-        # Override with config params if they exist
-        for k, v in CONFIG_PARAMS.items():
-            if k in self.kwargs_only:  # Only override if it's a valid keyword arg
-                kwargs[k] = v
-        
-        result = self.load(kwargs)
+            
+        result = self.load(**kwargs)
         if result is not None:
             return result
+        
+        # Remove the force flag if it's set
+        force = kwargs.pop('force', False) if 'force' in kwargs else False
 
-        result = self.make(*args, **kwargs)
+        result = self.make(**kwargs)
         return result
 
-def cache(func=None, ignore=None, config_depends_on=None):
+def cache(func=None, depends=None, ignore=None):
     """
     Decorator function that creates a CacheWrapper instance.
     
@@ -342,28 +384,35 @@ def cache(func=None, ignore=None, config_depends_on=None):
         def my_function(param1, param2):
             return expensive_computation(param1, param2)
             
+        # With explicit dependencies:
+        @cache(depends=[other_cached_function])
+        def my_function(param1, param2):
+            return computation_that_depends_on_other(param1, param2)
+            
+        # With default parameter dependencies:
+        @cache
+        def other_function(param1, cached_func=my_function):
+            # cached_func will be automatically called with matching parameters
+            return some_computation(param1, cached_func)
+            
         # With ignored parameters:
         @cache(ignore=['verbose'])
         def my_function(param1, param2, verbose=False):
             return expensive_computation(param1, param2)
             
-        # With CONFIG_PARAMS dependencies:
-        @cache(config_depends_on=['resolution', 'max_points'])
-        def my_function(param1, param2):
-            # This function internally depends on CONFIG_PARAMS['resolution']
-            # If that value changes, the cache will be invalidated
-            return resolution_dependent_computation(param1, param2)
+        # Force recomputation (bypass cache):
+        result = my_function(param1, param2, force=True)
     
     Args:
         func: The function to be cached (when used as decorator)
+        depends: List of other cached functions this function depends on
         ignore: List of parameter names to ignore in cache key
-        config_depends_on: List of CONFIG_PARAMS keys this function depends on
         
     Returns:
         CacheWrapper: A wrapper instance when used as decorator
         function: A decorator function when called with arguments
     """
     if func is None:
-        return lambda f: CacheWrapper(f, ignore, config_depends_on)
+        return lambda f: CacheWrapper(f, f.__name__, depends, ignore)
     
-    return CacheWrapper(func, ignore, config_depends_on)
+    return CacheWrapper(func, func.__name__, depends, ignore)
