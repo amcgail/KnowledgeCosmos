@@ -67,7 +67,7 @@
 
 /* Play Button */
 .play-button {
-    background: #4CAF50;
+    background: #8484e1;
     border: none;
     color: white;
     padding: 4px 8px;
@@ -81,15 +81,15 @@
 }
 
 .play-button:hover {
-    background: #45a049;
+    background: rgb(250, 77, 252);
 }
 
 .play-button.playing {
-    background: #f44336;
+    background: #ed6056;
 }
 
 .play-button.playing:hover {
-    background: #da190b;
+    background: #d8382d;
 }
 
 .close-button {
@@ -106,5 +106,5 @@
 }
 
 .close-button:hover {
-    color: #4CAF50;
+    color: #0808c9;
 } 
