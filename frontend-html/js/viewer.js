@@ -4,6 +4,7 @@ import { PaperManager } from './paper.js';
 import { UIManager } from './ui.js';
 import { TourController } from './tourController.js';
 import { STLLoader } from "/libs/three.js/loaders/STLLoader.js";
+import { SettingsManager } from './settingsManager.js';
 
 const SCROLL_SPEED = 2;
 
@@ -20,6 +21,13 @@ export class Viewer {
         
         // Create separate scene for collision mesh
         this.collisionScene = new THREE.Scene();
+        
+        // Create settings manager and make it globally accessible
+        this.settingsManager = new SettingsManager();
+        window.settingsManager = this.settingsManager;
+        
+        // Create UI manager with settings manager
+        this.uiManager = new UIManager(this.settingsManager);
         
         this.setupViewer();
         this.setupControls();
@@ -350,8 +358,9 @@ export class Viewer {
             const value = e.target.value;
             thicknessValue.textContent = `${value}%`;
             const activeOrientation = document.querySelector('.orientation-btn.active').dataset.orientation;
-            this.sliceThicknesses[activeOrientation] = value;
-            this.updateSliceThickness(value);
+            this.sliceThicknesses[activeOrientation] = value == 100 ? 3000 : value;
+            this.updateSliceThickness(value == 100 ? 3000 : value);
+            this.updateSlicePosition(this.slicePositions[activeOrientation]);
         });
     }
 
@@ -389,13 +398,13 @@ export class Viewer {
 
         switch (activeOrientation) {
             case 'axial':
-                this.sliceVolume.position.z = position;
+                this.sliceVolume.position.z = position - this.sliceThicknesses[activeOrientation] / 2;
                 break;
             case 'sagittal':
-                this.sliceVolume.position.x = position;
+                this.sliceVolume.position.x = position - this.sliceThicknesses[activeOrientation] / 2;
                 break;
             case 'coronal':
-                this.sliceVolume.position.y = position;
+                this.sliceVolume.position.y = position - this.sliceThicknesses[activeOrientation] / 2;
                 break;
         }
     }
@@ -1009,6 +1018,39 @@ export class Viewer {
         
         // Start the tour
         this.tourController.startTour();
+    }
+
+    toggleBrainSlicer(enabled) {
+        const sliceToggle = document.getElementById('slice-toggle');
+        if (enabled) {
+            sliceToggle.style.display = 'block';
+            // Initialize slice controls
+            this.setupSliceControls();
+        } else {
+            sliceToggle.style.display = 'none';
+            // If slice panel is visible, hide it
+            const slicePanel = document.getElementById('slice-panel');
+            if (slicePanel.style.display !== 'none') {
+                slicePanel.style.display = 'none';
+            }
+            // If slice volume exists, remove it
+            if (this.sliceVolume) {
+                this.viewer.scene.removeVolume(this.sliceVolume);
+                this.sliceVolume = null;
+            }
+        }
+    }
+
+    applySettings() {
+        // Apply all settings from settings manager
+        Object.keys(this.settingsManager.settings).forEach(category => {
+            Object.keys(this.settingsManager.settings[category]).forEach(setting => {
+                const settingData = this.settingsManager.settings[category][setting];
+                if (settingData.onChange) {
+                    settingData.onChange(settingData.value);
+                }
+            });
+        });
     }
 
 } 

@@ -23,6 +23,9 @@
     <link rel="stylesheet" href="css/slider.css">
     <link rel="stylesheet" href="css/fieldManager.css">
     <link rel="stylesheet" href="css/tour.css">
+    <link rel="stylesheet" href="css/settings.css">
+    <link rel="stylesheet" href="css/sidebar.css">
+    <link rel="stylesheet" href="css/tooltips.css">
 </head>
 
 <body>
@@ -61,17 +64,40 @@
     </button>
     <div class="right-sidebar collapsed">
         <div class="sidebar-tabs">
-            <button class="tab-btn active" data-tab="filters">
-                <i class="fas fa-filter"></i> Filters
+            <button class="tab-btn active tooltip-parent" data-tab="filters">
+                <i class="fas fa-filter"></i>
+                <div class="tooltip below">
+                    <span class="tooltip-title">Filters</span>
+                    <span class="tooltip-description">Filter papers by academic field</span>
+                </div>
             </button>
-            <button class="tab-btn" data-tab="constellations">
-                <i class="fas fa-star"></i> Constellations
+            <button class="tab-btn tooltip-parent" data-tab="constellations">
+                <i class="fas fa-star"></i>
+                <div class="tooltip below">
+                    <span class="tooltip-title">Constellations</span>
+                    <span class="tooltip-description">View field boundaries and intersections</span>
+                </div>
             </button>
-            <button class="tab-btn" data-tab="history">
-                <i class="fas fa-history"></i> History
+            <button class="tab-btn tooltip-parent" data-tab="history">
+                <i class="fas fa-history"></i>
+                <div class="tooltip below">
+                    <span class="tooltip-title">History</span>
+                    <span class="tooltip-description">Your paper exploration history</span>
+                </div>
             </button>
-            <button class="tab-btn" data-tab="saved">
-                <i class="fas fa-bookmark"></i> Saved
+            <button class="tab-btn tooltip-parent" data-tab="saved">
+                <i class="fas fa-bookmark"></i>
+                <div class="tooltip below">
+                    <span class="tooltip-title">Saved Papers</span>
+                    <span class="tooltip-description">Your bookmarked papers</span>
+                </div>
+            </button>
+            <button class="tab-btn tooltip-parent" data-tab="settings">
+                <i class="fas fa-cog"></i>
+                <div class="tooltip below skew-left">
+                    <span class="tooltip-title">Settings</span>
+                    <span class="tooltip-description">Customize your experience</span>
+                </div>
             </button>
         </div>
         
@@ -97,6 +123,10 @@
         <div class="tab-content" id="saved-tab">
             <p>Your bookmarked papers. Click on any paper to revisit it.</p>
             <div id="saved_list"></div>
+        </div>
+        
+        <div class="tab-content" id="settings-tab">
+            <!-- Settings will be dynamically rendered here -->
         </div>
     </div>
 
@@ -155,6 +185,13 @@
                 <span class="tooltip-description">Filter papers by publication year</span>
             </div>
         </div>
+        <div class="toolbar-item" data-selectable="true" id="slice-toggle" style="display:none;">
+            <i class="fas fa-crosshairs"></i>
+            <div class="tooltip">
+                <span class="tooltip-title">Cross-Section</span>
+                <span class="tooltip-description">View a cross-section of the galaxy</span>
+            </div>
+        </div>
     </div>
 
     <!-- Compact Year Filter Controls -->
@@ -184,10 +221,10 @@
         <div class="slice-controls">
             <div class="slice-orientation">
                 <div class="orientation-buttons">
-                    <button class="orientation-btn" data-orientation="off">
+                    <button class="orientation-btn active" data-orientation="off">
                         <i class="fas fa-times"></i> Off
                     </button>
-                    <button class="orientation-btn active" data-orientation="axial">
+                    <button class="orientation-btn" data-orientation="axial">
                         <i class="fas fa-square"></i> Axial
                     </button>
                     <button class="orientation-btn" data-orientation="sagittal">
@@ -316,5 +353,6 @@
     <script type="module" src="js/ui.js"></script>
     <script type="module" src="js/viewer.js"></script>
     <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/settingsManager.js"></script>
 </body>
 </html> 

@@ -1,0 +1,293 @@
+.settings-content {
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(100vh - 100px);
+    color: #333;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.settings-section {
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    background: #f5f5f5;
+    border-radius: 8px;
+}
+
+.settings-section h3 {
+    margin: 0 0 1.25rem;
+    font: 600 1rem/1.2 inherit;
+    color: #2c2c2c;
+}
+
+.setting-item {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    position: relative;
+}
+
+.setting-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.setting-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.setting-item-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #444;
+}
+
+.setting-description {
+    margin: 4px 0 8px;
+    color: #666;
+    font-size: 0.8rem;
+}
+
+.setting-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Reset buttons */
+.reset-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.2s;
+    opacity: 0.7;
+    border-radius: 4px;
+}
+
+.reset-button:hover {
+    opacity: 1;
+    background: rgba(0,0,0,0.05);
+}
+
+.reset-button svg {
+    width: 16px;
+    height: 16px;
+}
+
+.reset-all-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 1rem auto 0;
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    color: #666;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.reset-all-button:hover {
+    background: #f0f0f0;
+    border-color: #ccc;
+}
+
+/* Checkbox styling */
+.setting-item.checkbox .setting-controls {
+    justify-content: flex-end;
+}
+
+.setting-item.checkbox label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.setting-item.checkbox input {
+    display: none;
+}
+
+.checkbox-display {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.checkbox-display::after {
+    content: '✓';
+    color: transparent;
+    font-size: 14px;
+    transition: color 0.2s;
+}
+
+input:checked + .checkbox-display {
+    border-color: #2196F3;
+    background: #2196F3;
+}
+
+input:checked + .checkbox-display::after {
+    color: white;
+}
+
+/* Range input styling */
+.range-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 300px;
+}
+
+.setting-item input[type="range"] {
+    flex: 1;
+    margin: 0;
+    cursor: pointer;
+}
+
+.range-value {
+    display: inline-block;
+    min-width: 40px;
+    padding: 2px 6px;
+    background: #e9e9e9;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    font-family: monospace;
+    text-align: center;
+}
+
+input[type="range"] {
+    -webkit-appearance: none;
+    background: transparent;
+    width: 100%;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    background: #ddd;
+    border-radius: 2px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+    background: #2196F3;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+input[type="range"]:focus {
+    outline: none;
+}
+
+input[type="range"]:focus::-webkit-slider-thumb {
+    box-shadow: 0 0 0 2px rgba(33,150,243,0.2);
+}
+
+/* Multi-select styling */
+.multi-select-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.multi-select-option {
+    padding: 4px 12px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.multi-select-option:hover {
+    background: #f0f0f0;
+}
+
+.multi-select-option.selected {
+    background: #2196F3;
+    border-color: #2196F3;
+    color: white;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-switch .slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #555;
+    transition: .4s;
+    border-radius: 24px;
+}
+
+.toggle-switch .slider:before {
+    content: "";
+    position: absolute;
+    height: 16px;
+    width: 16px;
+    left: 4px;
+    bottom: 4px;
+    background: black;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+.toggle-switch input:checked + .slider {
+    background: #2196F3;
+}
+
+.toggle-switch input:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+/* Range and Number Inputs */
+.setting-item input[type="number"] {
+    width: 150px;
+    padding: 5px;
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    color: black;
+}
+
+.setting-item select option {
+    background: #333;
+    color: black;
+} 

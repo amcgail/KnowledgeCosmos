@@ -39,9 +39,13 @@ export class PaperManager {
         // Initialize paper history and bookmarks
         this.paperHistory = [];
         this.loadHistory();
-        this.setupTabNavigation();
         this.setupSidebarToggle();
         this.setupPaperSidebarToggle();
+
+        // Setup tab navigation after DOM is loaded
+        $(document).ready(() => {
+            this.setupTabNavigation();
+        });
     }
 
     setupTabNavigation() {

@@ -17,7 +17,13 @@ document.addEventListener('DOMContentLoaded', () => {
     window.viewer.loadPointCloud('/data/pointclouds/full/metadata.json', function(pc){
         // Store references
         window.main_pc = pc;
-        window.viewer.startPresentation();
+        
+        // Check if we should skip intro
+        if (window.viewer.settingsManager.getSetting('navigation', 'skipIntro')) {
+            window.viewer.skip_intro();
+        } else {
+            window.viewer.startPresentation();
+        }
 
         // Load the full mesh after point cloud is loaded
         window.viewer.loadFullMesh().then(() => {
@@ -66,6 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 mouseDownPos = null;
             }
         });
+
+        // Apply settings on startup
+        window.viewer.applySettings();
     });
 
     // Start the render loop

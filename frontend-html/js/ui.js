@@ -1,9 +1,11 @@
 import { FieldManager } from './fieldManager.js';
+import { SettingsManager } from './settingsManager.js';
 
 export class UIManager {
-    constructor() {
+    constructor(settingsManager) {
         console.log('Updating!')
         this.fieldManager = new FieldManager();
+        this.settingsManager = settingsManager;
         this.setupEventListeners();
         this.setupTips();
         this.setupComments();

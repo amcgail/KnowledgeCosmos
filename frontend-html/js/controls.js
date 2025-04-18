@@ -173,6 +173,16 @@ export class Controls {
                     window.uiManager.fieldManager.labelsVisible = labels_on;
                 }
 
+                if (item.id === 'slice-toggle') {
+                    item.classList.toggle('selected');
+                    const slicePanel = document.getElementById('slice-panel');
+                    if (slicePanel.style.display === 'none') {
+                        slicePanel.style.display = 'block';
+                    } else {
+                        slicePanel.style.display = 'none';
+                    }
+                }
+
                 // and slice control and rect select turn each other off
                 if (item.id === 'slice-control') {
                     item.classList.toggle('selected', true);
