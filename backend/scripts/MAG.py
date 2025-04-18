@@ -84,7 +84,7 @@ def GetNonEnglishIDs():
         if not title:  # Skip empty titles
             return False
         ascii_count = sum(1 for c in title if ord(c) < 128)
-        return (ascii_count / len(title)) > 0.9
+        return (ascii_count / len(title)) > 0.9 and len(title) > 10
 
     # Step 1: open outer gzip file
     with gzip.open(paperfn, "rb") as outer:
@@ -110,4 +110,5 @@ def GetNonEnglishIDs():
     return non_english_ids
 
 if __name__ == '__main__':
-    print(len(GetNonEnglishIDs(force=True)))
+    print('before', len(GetNonEnglishIDs()))
+    print('after', len(GetNonEnglishIDs(force=True)))
