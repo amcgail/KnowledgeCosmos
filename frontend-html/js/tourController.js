@@ -136,6 +136,20 @@ export class TourController {
         // Update button states
         this.tourUI.updateNavigationButtons(this.currentStep, this.tourContent.getTotalSteps());
         
+        // Special handling for the final step
+        if (stepIndex === steps.length - 1) {
+            // Show the next button and make it say "Begin Exploring"
+            if (this.tourUI.nextButton) {
+                this.tourUI.nextButton.style.display = '';
+                this.tourUI.nextButton.disabled = false;
+                this.tourUI.nextButton.textContent = "Begin Exploring";
+                // Remove any existing click handlers
+                this.tourUI.nextButton.removeEventListener('click', this.nextStep);
+                // Add new click handler that ends the tour
+                this.tourUI.nextButton.addEventListener('click', () => this.endTour());
+            }
+        }
+        
         // Update active phase and step in sidebar
         const { currentStepInPhase } = this.getCurrentStepInfo();
         this.tourUI.updateContentsHighlight(currentPhaseIndex, currentStepInPhase);
@@ -876,6 +890,35 @@ export class TourController {
         
         // Return to normal viewer state
         this.tourUI.restoreNormalViewerState();
+        
+        // Show the intro buttons without the tour button
+        const infoElement = document.getElementById('prettier_game_info');
+        if (infoElement) {
+            // Remove existing button container if any
+            const existingContainer = infoElement.querySelector('.begin-buttons-container');
+            if (existingContainer) {
+                existingContainer.remove();
+            }
+            
+            // Create a container for the buttons
+            const buttonsContainer = document.createElement('div');
+            buttonsContainer.className = 'begin-buttons-container';
+            
+            // Create "I'm ready to explore" button
+            const exploreButton = document.createElement('button');
+            exploreButton.textContent = "I'm ready to explore";
+            exploreButton.className = 'begin-button explore-button';
+            exploreButton.onclick = () => this.viewer.doneWithIntro();
+            
+            // Add button to container
+            buttonsContainer.appendChild(exploreButton);
+            
+            // Add container to info element
+            infoElement.appendChild(buttonsContainer);
+
+            // Send the viewer back home
+            this.viewer.home();
+        }
         
         // Final sweep for any remaining tour elements
         setTimeout(() => {

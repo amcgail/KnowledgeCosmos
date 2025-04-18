@@ -383,7 +383,7 @@ export class TourContent {
                     },
                     {
                         title: "Going Home",
-                        message: "Now, It's YOUR Turn!",
+                        message: "Let's clean up and go home",
                         arrangement: 2,  // Centered message
                         action: {
                             type: "clickEvent",
@@ -398,13 +398,12 @@ export class TourContent {
                     },
                     {
                         title: "Your Journey Awaits",
-                        message: "Inspired by her journey, Celeste is ready to dive even deeper. And now, so are you! The cosmos is vast, and there are so many discoveries waiting for you. Start exploring and see what connections you can uncover!",
-                        arrangement: 1,  // Center overlay
-                        action: null
-                    },
-                    {
-                        title: "Revisit the Tutorial",
-                        message: "And don't worry—if you want to revisit Celeste's journey, just click here to return to the tutorial.",
+                        message: (
+                            "Inspired by her journey, Celeste is ready to dive even deeper. And now, so are you! " +
+                            "The cosmos is vast, and there are so many discoveries waiting for you. " +
+                            "Start exploring and see what connections you can uncover!\n\n" +
+                            "And don't worry—if you want to revisit Celeste's journey, just click here to return to the tutorial."
+                        ),
                         arrangement: 1,  // Center overlay
                         action: null
                     }
